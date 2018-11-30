@@ -958,10 +958,55 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
     relativePose_info.found_residual_precision = std::max(relativePose_info.found_residual_precision, 1.0);
 
     {
-        // Init poses
-        const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3(step*0.05, 0, 0));
-        //const Pose3& initPoseJ = relativePose_info.relativePose;
-        const Pose3& initPoseJ = Pose3(Mat3::Identity(), Vec3(0,step*0.05,0));
+		// Init poses
+        float radie = 13.0;
+        float piDeg = 15.0 * step;
+        float theta = 0.0;
+
+        // convert to radians
+        float pi = piDeg * M_PI / 180;
+
+        float piNext = (piDeg + 15) * M_PI / 180;
+        
+        if(pi > M_PI)
+        {
+            pi -= M_PI;
+        }
+
+        if(pi > M_PI)
+        {
+            pi -= M_PI;
+        }
+
+        if(piNext > M_PI)
+        {
+            piNext -= M_PI;
+        }
+
+        if(piNext > M_PI)
+        {
+            piNext -= M_PI;
+        } 
+
+		Mat3 rotY = Mat3::Identity();
+        
+
+		rotY(0) = std::cos(pi);
+        rotY(2) = -std::sin(pi);
+        rotY(6) = std::sin(pi);
+        rotY(8) = std::cos(pi);
+
+
+        const Pose3& initPoseI = Pose3(rotY, Vec3(radie * std::sin(pi) * std::cos(theta), 
+															  radie * std::sin(pi) * std::sin(theta),
+															  radie * std::cos(pi)));
+        /*
+        relativePose_info.relativePose = Pose3(Mat3::Identity(), Vec3(radie * std::sin(piNext) * std::cos(theta),
+                                                              radie * std::sin(piNext) * std::sin(theta),
+                                                              radie * std::cos(piNext)));*/
+
+        const Pose3& initPoseJ = relativePose_info.relativePose;
+        ALICEVISION_LOG_INFO("relativePose_info.relativePose: " << relativePose_info.relativePose.center());
 
         _sfmData.setPose(*viewI, CameraPose(initPoseI));
         _sfmData.setPose(*viewJ, CameraPose(initPoseJ));
