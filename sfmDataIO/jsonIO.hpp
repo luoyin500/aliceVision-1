@@ -121,7 +121,6 @@ inline void loadCameraPose(const std::string& name, sfmData::CameraPose& cameraP
   geometry::Pose3 pose;
 
   loadPose3(name + ".transform", pose, cameraPoseTree);
-  ALICEVISION_LOG_INFO("loadPose3 name: ", name);
   cameraPose.setTransform(pose);
 
   if(cameraPoseTree.get<bool>("locked", false))

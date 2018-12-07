@@ -232,7 +232,7 @@ private:
    * @param[in] initialPair
    * @return
    */
-  bool makeInitialPair3D(const Pair& initialPair, int step);
+  bool makeInitialPair3D(const Pair& initialPair);
 
   /**
    * @brief Automatic initial pair selection (based on a 'baseline' computation score)
@@ -289,7 +289,7 @@ private:
    * @param[in] viewIndex: image index added to the reconstruction.
    * @param[in] resectionData: contains the camera pose and all data used during the resection.
    */
-  void updateScene(const IndexT viewIndex, const ResectionData& resectionData, int step);
+  void updateScene(const IndexT viewIndex, const ResectionData& resectionData);
                    
   /**
    * @brief  Triangulate new possible 2D tracks

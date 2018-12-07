@@ -53,7 +53,7 @@ public:
   const std::vector<geometry::Pose3> & getPoses() const;
   
   /*
-   * @brief Compute the initial guess related to the relative zs between all witness 
+   * @brief Compute the initial guess related to the relative positions between all witness 
    * cameras and the main camera
    * @return True if the initial calibration succeed, false otherwise.
    */
