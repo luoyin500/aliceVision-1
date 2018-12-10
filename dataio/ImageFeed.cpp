@@ -173,6 +173,7 @@ ImageFeed::FeederImpl::FeederImpl(const std::string& imagePath, const std::strin
     if(ext == ".json")
     {
       // load the json
+        ALICEVISION_LOG_INFO("load sfm data");
       _isInit = sfmDataIO::Load(_sfmdata, imagePath, sfmDataIO::ESfMData(sfmDataIO::ESfMData::VIEWS | sfmDataIO::ESfMData::INTRINSICS));
       _viewIterator = _sfmdata.getViews().begin();
       _sfmMode = true;

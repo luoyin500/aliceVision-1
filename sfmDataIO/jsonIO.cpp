@@ -59,8 +59,10 @@ void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& pa
 
 void loadView(sfmData::View& view, bpt::ptree& viewTree)
 {
+    ALICEVISION_LOG_INFO("UndefinedIndexT: " << UndefinedIndexT);
     view.setViewId(viewTree.get<IndexT>("viewId", UndefinedIndexT));
     view.setPoseId(viewTree.get<IndexT>("poseId", UndefinedIndexT));
+    ALICEVISION_LOG_INFO("poseid: " << view.getPoseId());
 
     if(viewTree.count("rigId"))
     {
@@ -306,7 +308,11 @@ bool saveJSON(const sfmData::SfMData& sfmData, const std::string& filename, ESfM
         bpt::ptree viewsTree;
 
         for(const auto& viewPair : sfmData.getViews())
+        {
+            ALICEVISION_LOG_INFO("viewPair.second: " << viewPair.second.get()->getImagePath());
             saveView("", *(viewPair.second), viewsTree);
+		}
+            
 
         fileTree.add_child("views", viewsTree);
     }
@@ -470,7 +476,7 @@ bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData p
                     v.setWidth(intrinsics->w());
                     v.setHeight(intrinsics->h());
                 }
-                updateIncompleteView(incompleteViews.at(i));
+                updateIncompleteView(incompleteViews.at(i), i);
             }
 
             viewIndex = 0;

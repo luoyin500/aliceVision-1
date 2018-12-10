@@ -130,6 +130,7 @@ ReconstructionEngine_sequentialSfM::ReconstructionEngine_sequentialSfM(
     _htmlLogFile(sloggingFile),
     _userInitialImagePair(Pair(0,0))
 {
+    ALICEVISION_LOG_INFO("sfm_data: " << sfm_data.getViews().begin()->first);
   // setup HTML logger
   if (!_htmlLogFile.empty())
   {
@@ -270,6 +271,8 @@ void ReconstructionEngine_sequentialSfM::createInitialReconstruction(const std::
   // initial pair Essential Matrix and [R|t] estimation.
   for(const auto& initialPairCandidate: initialImagePairCandidates)
   {
+      const View* viewI = _sfmData.getViews().at(initialPairCandidate.first).get();
+      ALICEVISION_LOG_INFO("initialPairCandidate: " << viewI->getImagePath());
     if(makeInitialPair3D(initialPairCandidate))
     {
       // Successfully found an initial image pair
@@ -935,6 +938,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
     triangulate(_sfmData, prevImageIndex, newImageIndex);
 
+	
     Save(_sfmData,(fs::path(_outputFolder) / ("initialPair" + _sfmdataInterFileExtension)).string(), _sfmdataInterFilter);
 
     /*
@@ -1070,7 +1074,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
   boost::progress_display my_progress_bar( _pairwiseMatches->size(),
     std::cout,"Automatic selection of an initial pair:\n" );
 
-#pragma omp parallel for schedule(dynamic)
+//#pragma omp parallel for schedule(dynamic)
   for (int i = 0; i < _pairwiseMatches->size(); ++i)
   {
     matching::PairwiseMatches::const_iterator iter = _pairwiseMatches->begin();
@@ -1088,8 +1092,13 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
       continue;
     
     const View* viewI = _sfmData.getViews().at(I).get();
+    
     const Intrinsics::const_iterator iterIntrinsic_I = _sfmData.getIntrinsics().find(viewI->getIntrinsicId());
     const View* viewJ = _sfmData.getViews().at(J).get();
+    ALICEVISION_LOG_INFO("Index I: " << viewI->getImagePath() << " ,Index J: " << viewJ->getImagePath() << "I: " << I
+                                     << "i: " << i );
+    //<< " Pose:" << _sfmData.getPoses().at(0)
+                                    
     const Intrinsics::const_iterator iterIntrinsic_J = _sfmData.getIntrinsics().find(viewJ->getIntrinsicId());
 
     const Pinhole* camI = dynamic_cast<const Pinhole*>(iterIntrinsic_I->second.get());
