@@ -232,7 +232,7 @@ private:
    * @param[in] initialPair
    * @return
    */
-  bool makeInitialPair3D(const Pair& initialPair);
+  bool makeInitialPair3D(const Pair& initialPair, int step);
 
   /**
    * @brief Automatic initial pair selection (based on a 'baseline' computation score)
@@ -381,6 +381,8 @@ private:
   float _maxAngleInitialPair = 40.0f;
   bool _useTrackFiltering = true;
   robustEstimation::ERobustEstimator _localizerEstimator = robustEstimation::ERobustEstimator::ACRANSAC;
+
+  int _nextRow = 0;
 
   // Data providers
 
