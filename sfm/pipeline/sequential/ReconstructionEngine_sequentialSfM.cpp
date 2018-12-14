@@ -273,24 +273,20 @@ void ReconstructionEngine_sequentialSfM::createInitialReconstruction(
     int step = 0;
     for(const auto& initialPairCandidate : initialImagePairCandidates)
     {
-        if((step * 2 + 1) >= _sfmData.getViews().size())
-        {
-            ALICEVISION_LOG_INFO("break step: " << step * 2 + 2);
-            break;
-        }
+
         const View* viewI = _sfmData.getViews().at(initialPairCandidate.first).get();
         ALICEVISION_LOG_INFO("initialPairCandidate: " << viewI->getImagePath()
                                                       << " size: " << _sfmData.getViews().size()
-                                                      << "pair candidate size: " << initialImagePairCandidates.size());
+                                                      << "pair candidate size: " << initialImagePairCandidates.size() << " step: "<< step);
         if(makeInitialPair3D(initialPairCandidate, step))
         {
             // Successfully found an initial image pair
             ALICEVISION_LOG_INFO("Initial pair is: " << initialPairCandidate.first << ", "
                                                      << initialPairCandidate.second);
-            return;
+            //return;
             
         }
-        if(step == 4)
+        if(step == 50)
         {
             return;
         }
@@ -1013,16 +1009,22 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
         // Init poses
 
+		float offsetCamRot = 90.0; 
 
         float radie = 13.0;
         float piDeg = 0.0;
-        float piNextDeg = 45.0;
+        float piNextDeg =  45.0;
+        float camRotDeg = offsetCamRot;
+        float camRotNextDeg = offsetCamRot + 45.0;
         float thetaDeg = 8.7 * _nextRow;
 
 		if(step > 0)
         {
             piDeg = 45.0 * (step * 2);
-            piNextDeg = 45.0 * (step * 2) + 45.0;
+            piNextDeg =  45.0 * (step * 2) + 45.0;
+
+			camRotDeg = offsetCamRot + 45.0 * (step * 2);
+            camRotNextDeg = offsetCamRot + 45.0 * (step * 2) + 45.0;
 		}
 
         // convert to radians
@@ -1030,6 +1032,9 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         float theta = thetaDeg * M_PI / 180;
 
         float piNext = piNextDeg * M_PI / 180;
+
+		float camRot = camRotDeg * M_PI / 180;
+        float camRotNext = camRotNextDeg * M_PI / 180;
 
         /*
         if(theta > M_PI)
@@ -1058,6 +1063,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         Mat3 rotZ = Mat3::Identity();
         Mat3 rotRes = Mat3::Identity();
         Mat3 rotNext = Mat3::Identity();
+        Mat3 rotYnext = Mat3::Identity();
 
         int thetaRot = theta;
 
@@ -1065,10 +1071,15 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
         
 
-        rotY(0) = std::cos(pi);
-        rotY(2) = -std::sin(pi);
-        rotY(6) = std::sin(pi);
-        rotY(8) = std::cos(pi);
+        rotY(0) = std::cos(camRot);
+        rotY(2) = -std::sin(camRot);
+        rotY(6) = std::sin(camRot);
+        rotY(8) = std::cos(camRot);
+
+		rotYnext(0) = std::cos(camRotNext);
+        rotYnext(2) = -std::sin(camRotNext);
+        rotYnext(6) = std::sin(camRotNext);
+        rotYnext(8) = std::cos(camRotNext);
 
         float rho = 0.0;
 
@@ -1123,7 +1134,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         ALICEVISION_LOG_INFO("x: " << radie * std::sin(theta) * std::cos(pi) << " y: " << radie * std::cos(theta)
                                    << " z: " << radie * std::sin(theta) * std::sin(pi));
         
-        const Pose3& initPoseJ = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(piNext),
+        const Pose3& initPoseJ = Pose3(rotYnext, Vec3(radie * std::sin(theta) * std::cos(piNext),
 												  radie * std::cos(theta),
                                                   radie * std::sin(theta) * std::sin(piNext))); 
         // Init poses
