@@ -382,7 +382,8 @@ private:
   bool _useTrackFiltering = true;
   robustEstimation::ERobustEstimator _localizerEstimator = robustEstimation::ERobustEstimator::ACRANSAC;
 
-  int _nextRow = 0;
+  int _nextRow = 1;
+  int _cameraNrOnRow = 0;
 
   // Data providers
 

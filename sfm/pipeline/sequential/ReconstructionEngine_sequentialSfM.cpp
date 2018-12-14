@@ -167,7 +167,7 @@ bool ReconstructionEngine_sequentialSfM::process()
         // Note: each landmark has a corresponding track with the same id (landmarkId == trackId).
         remapLandmarkIdsToTrackIds();
     }
-
+    ALICEVISION_LOG_DEBUG("reconstruction");
     // reconstruction
     const double elapsedTime = incrementalReconstruction();
 
@@ -259,6 +259,7 @@ std::vector<Pair> ReconstructionEngine_sequentialSfM::getInitialImagePairsCandid
     }
     else
     {
+        ALICEVISION_LOG_INFO("emplace_back image pair");
         initialImagePairCandidates.emplace_back(_userInitialImagePair);
     }
 
@@ -272,17 +273,31 @@ void ReconstructionEngine_sequentialSfM::createInitialReconstruction(
     int step = 0;
     for(const auto& initialPairCandidate : initialImagePairCandidates)
     {
+        if((step * 2 + 1) >= _sfmData.getViews().size())
+        {
+            ALICEVISION_LOG_INFO("break step: " << step * 2 + 2);
+            break;
+        }
         const View* viewI = _sfmData.getViews().at(initialPairCandidate.first).get();
-        ALICEVISION_LOG_INFO("initialPairCandidate: " << viewI->getImagePath());
+        ALICEVISION_LOG_INFO("initialPairCandidate: " << viewI->getImagePath()
+                                                      << " size: " << _sfmData.getViews().size()
+                                                      << "pair candidate size: " << initialImagePairCandidates.size());
         if(makeInitialPair3D(initialPairCandidate, step))
         {
             // Successfully found an initial image pair
             ALICEVISION_LOG_INFO("Initial pair is: " << initialPairCandidate.first << ", "
                                                      << initialPairCandidate.second);
             return;
+            
+        }
+        if(step == 4)
+        {
+            return;
         }
         step++;
+        
     }
+    ALICEVISION_LOG_INFO("Initialization failed after trying all possible initial image pairs.");
     throw std::runtime_error("Initialization failed after trying all possible initial image pairs.");
 }
 
@@ -892,31 +907,36 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
     ALICEVISION_LOG_INFO("_sfmData.getViews().size(): " << _sfmData.getViews().size() << " step: " << step);
     int next = 1;
-    if(step == _sfmData.getViews().size())
-    {
-        next = -2;
-    }
+   
 
-	if(step % 8 == 0 && step > 0)
-    {
-
-        _nextRow += 1;
-        ALICEVISION_LOG_INFO("_nextRow: " << _nextRow << "step: " << step);
-    }
-    std::size_t I = step ;
-    std::size_t J = step +1;
+    std::size_t I = step;
+    std::size_t J = step + next;
     if(step > 0)
     {
-        I = step * 2  + _nextRow;
-        J = step * 2 + next  + _nextRow;
+        I = step * 2;
+        J = step * 2 + next ;
     }
 
+	/*
+	if(step == _sfmData.getViews().size())
+    {
+      
+    }*/
 
+	
     // a. Assert we have valid pinhole cameras
+    
     const View* viewI = _sfmData.getViews().at(I).get();
+    
     const Intrinsics::const_iterator iterIntrinsicI = _sfmData.getIntrinsics().find(viewI->getIntrinsicId());
+
+	
     const View* viewJ = _sfmData.getViews().at(J).get();
+    ALICEVISION_LOG_INFO("I: " << I << " size: " << _sfmData.getViews().size());
+    ALICEVISION_LOG_INFO("J: " << J << " size: " << _sfmData.getViews().size());
     const Intrinsics::const_iterator iterIntrinsicJ = _sfmData.getIntrinsics().find(viewJ->getIntrinsicId());
+
+	
 
     ALICEVISION_LOG_INFO("Initial pair is:" << std::endl
                                             << "  A - view id: " << I << " - filepath: " << viewI->getImagePath()
@@ -983,21 +1003,35 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
     relativePose_info.found_residual_precision = std::max(relativePose_info.found_residual_precision, 1.0);
 
     {
-        
-        // Init poses
-        float radie = 13.0;
-        float thetaDeg = 45.0 * step;
-        float  piDeg = 8.7 * _nextRow;
+        if(step % 4 == 0 && step > 0)
+        {
 
-        
+            _nextRow += 1;
+            _cameraNrOnRow = 0;
+            ALICEVISION_LOG_INFO("_nextRow: " << _nextRow << "step: " << step);
+        }
+
+        // Init poses
+
+
+        float radie = 13.0;
+        float piDeg = 0.0;
+        float piNextDeg = 45.0;
+        float thetaDeg = 8.7 * _nextRow;
+
+		if(step > 0)
+        {
+            piDeg = 45.0 * (step * 2);
+            piNextDeg = 45.0 * (step * 2) + 45.0;
+		}
 
         // convert to radians
         float pi = piDeg * M_PI / 180;
         float theta = thetaDeg * M_PI / 180;
 
-        float piNext = (piDeg + 15) * M_PI / 180;
+        float piNext = piNextDeg * M_PI / 180;
 
-		/*
+        /*
         if(theta > M_PI)
         {
             theta -= M_PI;
@@ -1019,36 +1053,82 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
             pi -= M_PI;
         }*/
 
-		
-
         Mat3 rotY = Mat3::Identity();
+        Mat3 rotX = Mat3::Identity();
+        Mat3 rotZ = Mat3::Identity();
+        Mat3 rotRes = Mat3::Identity();
         Mat3 rotNext = Mat3::Identity();
 
-		int thetaRot = theta ;
+        int thetaRot = theta;
 
-        rotY(0) = std::cos(theta);
-        rotY(2) = std::sin(theta);
-        rotY(6) = -std::sin(theta);
-        rotY(8) = std::cos(theta);
+        
+
+        
+
+        rotY(0) = std::cos(pi);
+        rotY(2) = -std::sin(pi);
+        rotY(6) = std::sin(pi);
+        rotY(8) = std::cos(pi);
+
+        float rho = 0.0;
+
+        // check which Quadrant the camera is in
+        // x > 0 && z > 0 -> qudrantr 1
+        if(radie * std::sin(theta) * std::sin(pi) > 0)
+        {
+            rotX(4) = std::cos(theta);
+            rotX(5) = -std::sin(theta);
+            rotX(7) = std::sin(theta);
+            rotX(8) = std::cos(theta);
+        }
+        else if(radie * std::sin(theta) * std::sin(pi) < 0 )
+        {
+            rotX(4) = std::cos(-theta);
+            rotX(5) = -std::sin(-theta);
+            rotX(7) = std::sin(-theta);
+            rotX(8) = std::cos(-theta);
+        }
+        else if(radie * std::sin(theta) * std::sin(pi) == 0 && radie * std::sin(theta) * std::cos(pi) > 0)
+        {
+            rotZ(0) = std::cos(-theta);
+            rotZ(1) = std::sin(-theta);
+            rotZ(3) = -std::sin(-theta);
+            rotZ(4) = std::cos(-theta);
+        }
+        else if(radie * std::sin(theta) * std::sin(pi) == 0 && radie * std::sin(theta) * std::cos(pi) < 0)
+        {
+            rotZ(0) = std::cos(theta);
+            rotZ(1) = std::sin(theta);
+            rotZ(3) = -std::sin(theta);
+            rotZ(4) = std::cos(theta);
+        }
+		
+
+        ALICEVISION_LOG_INFO("pi: " << pi);
+        ALICEVISION_LOG_INFO("theta: " << theta);
 
         rotNext(0) = std::cos(pi + 0.785398);
         rotNext(2) = std::sin(pi + 0.785398);
         rotNext(6) = -std::sin(pi + 0.785398);
         rotNext(8) = std::cos(pi + 0.785398);
 
-        const Pose3& initPoseI = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(pi),
-                                                  radie * std::sin(theta) * std::sin(pi), 
-												  radie * std::cos(theta)));
-        ALICEVISION_LOG_INFO("x: " << radie * std::sin(theta) * std::cos(pi) << " y: "
-                                   << radie * std::sin(theta) * std::sin(pi) << " z: " << radie * std::cos(theta));
-        /*
-        const Pose3& initPoseJ =
-            Pose3(rotNext, Vec3(radie * std::sin(theta) * std::cos(pi + 0.785398),
-								radie * std::sin(theta) * std::sin(pi + 0.785398), 
-								radie * std::cos(theta)));*/
+		rotX(4) = std::cos(pi);
+        rotX(5) = -std::sin(pi);
+        rotX(7) = std::sin(pi);
+        rotX(8) = std::cos(pi);
+
+        const Pose3& initPoseI = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(pi), 
+												  radie * std::cos(theta),
+                                                  radie * std::sin(theta) * std::sin(pi)));
+        ALICEVISION_LOG_INFO("x: " << radie * std::sin(theta) * std::cos(pi) << " y: " << radie * std::cos(theta)
+                                   << " z: " << radie * std::sin(theta) * std::sin(pi));
+        
+        const Pose3& initPoseJ = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(piNext),
+												  radie * std::cos(theta),
+                                                  radie * std::sin(theta) * std::sin(piNext))); 
         // Init poses
         // const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
-        const Pose3& initPoseJ = relativePose_info.relativePose;
+        //const Pose3& initPoseJ = relativePose_info.relativePose;
 
         _sfmData.setPose(*viewI, CameraPose(initPoseI));
         _sfmData.setPose(*viewJ, CameraPose(initPoseJ));
@@ -1162,6 +1242,8 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
     Save(_sfmData, (fs::path(_outputFolder) / ("initialPair_sfmData" + _sfmdataInterFileExtension)).string(),
          _sfmdataInterFilter);
 
+	ALICEVISION_LOG_INFO("crash");
+
     return !_sfmData.structure.empty();
 }
 
@@ -1203,7 +1285,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
     // Compute the relative pose & the 'baseline score'
     boost::progress_display my_progress_bar(_pairwiseMatches->size(), std::cout,
                                             "Automatic selection of an initial pair:\n");
-
+    ALICEVISION_LOG_INFO("_pairwiseMatches->size(): " << _pairwiseMatches->size());
     //#pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < _pairwiseMatches->size(); ++i)
     {
@@ -1226,7 +1308,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
         const Intrinsics::const_iterator iterIntrinsic_I = _sfmData.getIntrinsics().find(viewI->getIntrinsicId());
         const View* viewJ = _sfmData.getViews().at(J).get();
         ALICEVISION_LOG_INFO("Index I: " << viewI->getImagePath() << " ,Index J: " << viewJ->getImagePath()
-                                         << "I: " << I << "i: " << i);
+                                         << " I: " << I << "i: " << i);
         //<< " Pose:" << _sfmData.getPoses().at(0)
 
         const Intrinsics::const_iterator iterIntrinsic_J = _sfmData.getIntrinsics().find(viewJ->getIntrinsicId());
@@ -1272,8 +1354,8 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
             robustRelativePose(camI->K(), camJ->K(), xI, xJ, relativePose_info, std::make_pair(camI->w(), camI->h()),
                                std::make_pair(camJ->w(), camJ->h()), 1024);
 
-        if(relativePoseSuccess && relativePose_info.vec_inliers.size() > iMin_inliers_count)
-        {
+       // if(relativePoseSuccess && relativePose_info.vec_inliers.size() > iMin_inliers_count)
+        
             // Triangulate inliers & compute angle between bearing vectors
             std::vector<float> vec_angles(relativePose_info.vec_inliers.size());
             std::vector<std::size_t> validCommonTracksIds(relativePose_info.vec_inliers.size());
@@ -1281,7 +1363,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
             const Pose3 pose_J = relativePose_info.relativePose;
             const Mat34 PI = camI->get_projective_equivalent(pose_I);
             const Mat34 PJ = camJ->get_projective_equivalent(pose_J);
-            std::size_t i = 0;
+            std::size_t index = 0;
             for(const size_t inlier_idx : relativePose_info.vec_inliers)
             {
                 Vec3 X;
@@ -1295,9 +1377,9 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
                     _featuresPerView->getFeatures(J, map_tracksCommon[trackId].descType)[(++iter)->second]
                         .coords()
                         .cast<double>();
-                vec_angles[i] = AngleBetweenRays(pose_I, camI, pose_J, camJ, featI, featJ);
-                validCommonTracksIds[i] = trackId;
-                ++i;
+                vec_angles[index] = AngleBetweenRays(pose_I, camI, pose_J, camJ, featI, featJ);
+                validCommonTracksIds[index] = trackId;
+                ++index;
             }
             // Compute the median triangulation angle
             const unsigned median_index = vec_angles.size() / 2;
@@ -1313,10 +1395,11 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
             if(scoring_angle < fRequired_min_angle || scoring_angle > fLimit_max_angle)
                 score = -1.0 / score;
 
-#pragma omp critical
+//#pragma omp critical
+            ALICEVISION_LOG_INFO("add image pair");
             bestImagePairs.emplace_back(score, imagePairScore, scoring_angle, relativePose_info.vec_inliers.size(),
                                         current_pair);
-        }
+        
     }
     // We print the N best scores and return the best one.
     const std::size_t nBestScores = std::min(std::size_t(50), bestImagePairs.size());
@@ -1343,6 +1426,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
     for(const auto& imagePair : bestImagePairs)
         out_bestImagePairs.push_back(std::get<4>(imagePair));
 
+	ALICEVISION_LOG_INFO("out_bestImagePairs: " << out_bestImagePairs.size() << " bestImagePairs: " << bestImagePairs.size());
     return true;
 }
 

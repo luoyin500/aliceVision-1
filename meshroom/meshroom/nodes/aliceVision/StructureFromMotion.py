@@ -161,13 +161,6 @@ class StructureFromMotion(desc.CommandLineNode):
             value=False,
             uid=[],
         ),
-        desc.BoolParam(
-            name='useRigsCalibration',
-            label='Use Rigs Calibration',
-            description='Enable/Disable rigs calibration.',
-            value=True,
-            uid=[0],
-        ),
         desc.File(
             name='initialPairA',
             label='Initial Pair A',
