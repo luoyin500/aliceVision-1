@@ -1009,7 +1009,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
         // Init poses
 
-		float offsetCamRot = 90.0; 
+		float offsetCamRot = -90.0; 
 
         float radie = 13.0;
         float piDeg = 0.0;
@@ -1070,15 +1070,15 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         
 
         
-
+		// CCW rotation
         rotY(0) = std::cos(camRot);
-        rotY(2) = -std::sin(camRot);
-        rotY(6) = std::sin(camRot);
+        rotY(2) = std::sin(camRot);
+        rotY(6) = -std::sin(camRot);
         rotY(8) = std::cos(camRot);
 
 		rotYnext(0) = std::cos(camRotNext);
-        rotYnext(2) = -std::sin(camRotNext);
-        rotYnext(6) = std::sin(camRotNext);
+        rotYnext(2) = std::sin(camRotNext);
+        rotYnext(6) = -std::sin(camRotNext);
         rotYnext(8) = std::cos(camRotNext);
 
         float rho = 0.0;
@@ -1130,13 +1130,13 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
         const Pose3& initPoseI = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(pi), 
 												  radie * std::cos(theta),
-                                                  radie * std::sin(theta) * std::sin(pi)));
+                                                  radie * std::sin(theta) * std::sin(-pi)));
         ALICEVISION_LOG_INFO("x: " << radie * std::sin(theta) * std::cos(pi) << " y: " << radie * std::cos(theta)
                                    << " z: " << radie * std::sin(theta) * std::sin(pi));
         
         const Pose3& initPoseJ = Pose3(rotYnext, Vec3(radie * std::sin(theta) * std::cos(piNext),
 												  radie * std::cos(theta),
-                                                  radie * std::sin(theta) * std::sin(piNext))); 
+                                                  radie * std::sin(theta) * std::sin(-piNext))); 
         // Init poses
         // const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
         //const Pose3& initPoseJ = relativePose_info.relativePose;
