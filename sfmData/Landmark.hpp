@@ -32,8 +32,7 @@ struct Observation
 
   bool operator==(const Observation& other) const
   {
-    return AreVecNearEqual(x, other.x, 1e-6) &&
-           id_feat == other.id_feat;
+    return AreVecNearEqual(x, other.x, 1e-6) && id_feat == other.id_feat;
   }
 };
 

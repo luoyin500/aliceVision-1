@@ -286,7 +286,7 @@ void ReconstructionEngine_sequentialSfM::createInitialReconstruction(
             //return;
             
         }
-        if(step == 50)
+        if(step == initialImagePairCandidates.size()-1)
         {
             return;
         }
@@ -481,13 +481,14 @@ void ReconstructionEngine_sequentialSfM::updateReconstruction(IndexT resectionId
             if(hasResected)
             {
                 imageAdded |= hasResected;
+                ALICEVISION_LOG_INFO("Resection");
                 updateScene(viewId, newResectionData);
-                ALICEVISION_LOG_DEBUG("Resection of image " << i << " ( view id: " << viewId << " ) succeed.");
+                ALICEVISION_LOG_INFO("Resection of image " << i << " ( view id: " << viewId << " ) succeed.");
                 _sfmData.getViews().at(viewId)->setResectionId(resectionId);
             }
             else
             {
-                ALICEVISION_LOG_DEBUG("Resection of image " << i << " ( view id: " << viewId << " ) was not possible.");
+                ALICEVISION_LOG_INFO("Resection of image " << i << " ( view id: " << viewId << " ) was not possible.");
             }
             viewIds.erase(viewId);
         }
@@ -1002,20 +1003,20 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         if(step % 4 == 0 && step > 0)
         {
 
-            _nextRow += 1;
+            _nextRow--;
             _cameraNrOnRow = 0;
             ALICEVISION_LOG_INFO("_nextRow: " << _nextRow << "step: " << step);
         }
 
         // Init poses
 
-		float offsetCamRot = -90.0; 
+		float offsetCamRot = 90.0; 
 
         float radie = 13.0;
         float piDeg = 0.0;
         float piNextDeg =  45.0;
         float camRotDeg = offsetCamRot;
-        float camRotNextDeg = offsetCamRot + 45.0;
+        float camRotNextDeg = offsetCamRot - 45.0;
         float thetaDeg = 8.7 * _nextRow;
 
 		if(step > 0)
@@ -1023,18 +1024,18 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
             piDeg = 45.0 * (step * 2);
             piNextDeg =  45.0 * (step * 2) + 45.0;
 
-			camRotDeg = offsetCamRot + 45.0 * (step * 2);
-            camRotNextDeg = offsetCamRot + 45.0 * (step * 2) + 45.0;
+			camRotDeg = offsetCamRot - 45.0 * (step * 2);
+            camRotNextDeg = offsetCamRot - 45.0 * (step * 2) - 45.0;
 		}
 
         // convert to radians
-        float pi = piDeg * M_PI / 180;
-        float theta = thetaDeg * M_PI / 180;
+        float pi = piDeg * M_PI / 180.0;
+        float theta = thetaDeg * M_PI / 180.0;
 
-        float piNext = piNextDeg * M_PI / 180;
+        float piNext = piNextDeg * M_PI / 180.0;
 
-		float camRot = camRotDeg * M_PI / 180;
-        float camRotNext = camRotNextDeg * M_PI / 180;
+		float camRot = camRotDeg * M_PI / 180.0;
+        float camRotNext = camRotNextDeg * M_PI / 180.0;
 
         /*
         if(theta > M_PI)
@@ -1061,6 +1062,8 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         Mat3 rotY = Mat3::Identity();
         Mat3 rotX = Mat3::Identity();
         Mat3 rotZ = Mat3::Identity();
+        Mat3 rot = Mat3::Identity();
+        Mat3 rotZoffest = Mat3::Identity();
         Mat3 rotRes = Mat3::Identity();
         Mat3 rotNext = Mat3::Identity();
         Mat3 rotYnext = Mat3::Identity();
@@ -1070,7 +1073,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         
 
         
-		// CCW rotation
+		// CCW rotation about Y
         rotY(0) = std::cos(camRot);
         rotY(2) = std::sin(camRot);
         rotY(6) = -std::sin(camRot);
@@ -1081,60 +1084,78 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         rotYnext(6) = -std::sin(camRotNext);
         rotYnext(8) = std::cos(camRotNext);
 
-        float rho = 0.0;
+		rotNext = rotYnext;
 
-        // check which Quadrant the camera is in
-        // x > 0 && z > 0 -> qudrantr 1
-        if(radie * std::sin(theta) * std::sin(pi) > 0)
+		rotZoffest(0) = std::cos(M_PI);
+        rotZoffest(1) = std::sin(M_PI);
+        rotZoffest(3) = -std::sin(M_PI);
+        rotZoffest(4) = std::cos(M_PI);
+
+
+
+        float z = radie * std::sin(theta) * std::sin(-pi);
+        float x = radie * std::sin(theta) * std::cos(pi);
+        float y = radie * std::cos(theta);
+		if(fabs(std::sin(-pi)) < 0.0001)
         {
-            rotX(4) = std::cos(theta);
-            rotX(5) = -std::sin(theta);
-            rotX(7) = std::sin(theta);
-            rotX(8) = std::cos(theta);
+            ALICEVISION_LOG_INFO("z==0.0");
+            z = 0.0;
         }
-        else if(radie * std::sin(theta) * std::sin(pi) < 0 )
+
+		ALICEVISION_LOG_INFO(" z: " << radie * std::sin(theta) * std::sin(-pi));
+
+		
+        // z ==0 && x > 0.0
+        if(z == 0.0 && x > 0.0)
         {
-            rotX(4) = std::cos(-theta);
-            rotX(5) = -std::sin(-theta);
-            rotX(7) = std::sin(-theta);
-            rotX(8) = std::cos(-theta);
+            ALICEVISION_LOG_INFO("z==0 filepath: " << viewI->getImagePath());
+            rotZ(0) = std::cos(theta - M_PI_2);
+            rotZ(1) = std::sin(theta - M_PI_2);
+            rotZ(3) = -std::sin(theta - M_PI_2);
+            rotZ(4) = std::cos(theta - M_PI_2);
+
+            rot = rotY * rotZ;
+        }// z ==0 && x < 0.0
+        else if(z == 0.0 && x < 0.0)
+        {
+            ALICEVISION_LOG_INFO("x<0.0 filepath: " << viewI->getImagePath());
+            rotZ(0) = std::cos(theta - M_PI_2);
+            rotZ(1) = -std::sin(theta - M_PI_2);
+            rotZ(3) = std::sin(theta - M_PI_2);
+            rotZ(4) = std::cos(theta - M_PI_2);
+
+            rot = rotY * rotZ;
         }
-        else if(radie * std::sin(theta) * std::sin(pi) == 0 && radie * std::sin(theta) * std::cos(pi) > 0)
+        else if(z < 0.0 )
         {
-            rotZ(0) = std::cos(-theta);
-            rotZ(1) = std::sin(-theta);
-            rotZ(3) = -std::sin(-theta);
-            rotZ(4) = std::cos(-theta);
+            ALICEVISION_LOG_INFO("z < 0 " << viewI->getImagePath());
+            rotX(4) = std::cos(theta - M_PI_2);
+            rotX(5) = -std::sin(theta - M_PI_2);
+            rotX(7) = std::sin(theta - M_PI_2);
+            rotX(8) = std::cos(theta - M_PI_2);
+
+            rot = rotY * rotX;
+            rotNext = rotYnext * rotX;
         }
-        else if(radie * std::sin(theta) * std::sin(pi) == 0 && radie * std::sin(theta) * std::cos(pi) < 0)
+        else if(z > 0.0)
         {
-            rotZ(0) = std::cos(theta);
-            rotZ(1) = std::sin(theta);
-            rotZ(3) = -std::sin(theta);
-            rotZ(4) = std::cos(theta);
+            ALICEVISION_LOG_INFO("z > 0 " << viewI->getImagePath());
+            rotX(4) = std::cos(theta - M_PI_2);
+            rotX(5) = std::sin(theta - M_PI_2);
+            rotX(7) = -std::sin(theta - M_PI_2);
+            rotX(8) = std::cos(theta - M_PI_2);
+
+            rot = rotY * rotX;
+            rotNext = rotYnext * rotX;
         }
 		
 
         ALICEVISION_LOG_INFO("pi: " << pi);
         ALICEVISION_LOG_INFO("theta: " << theta);
 
-        rotNext(0) = std::cos(pi + 0.785398);
-        rotNext(2) = std::sin(pi + 0.785398);
-        rotNext(6) = -std::sin(pi + 0.785398);
-        rotNext(8) = std::cos(pi + 0.785398);
-
-		rotX(4) = std::cos(pi);
-        rotX(5) = -std::sin(pi);
-        rotX(7) = std::sin(pi);
-        rotX(8) = std::cos(pi);
-
-        const Pose3& initPoseI = Pose3(rotY, Vec3(radie * std::sin(theta) * std::cos(pi), 
-												  radie * std::cos(theta),
-                                                  radie * std::sin(theta) * std::sin(-pi)));
-        ALICEVISION_LOG_INFO("x: " << radie * std::sin(theta) * std::cos(pi) << " y: " << radie * std::cos(theta)
-                                   << " z: " << radie * std::sin(theta) * std::sin(pi));
+        const Pose3& initPoseI = Pose3(rot * rotZoffest, Vec3(x, y, z));
         
-        const Pose3& initPoseJ = Pose3(rotYnext, Vec3(radie * std::sin(theta) * std::cos(piNext),
+        const Pose3& initPoseJ = Pose3(rotNext * rotZoffest, Vec3(radie * std::sin(theta) * std::cos(piNext),
 												  radie * std::cos(theta),
                                                   radie * std::sin(theta) * std::sin(-piNext))); 
         // Init poses
@@ -1673,12 +1694,13 @@ bool ReconstructionEngine_sequentialSfM::computeResection(const IndexT viewIndex
         // If we use a camera intrinsic for the first time we need to refine it.
         const bool intrinsicsFirstUsage = (reconstructedIntrinsics.count(view_I->getIntrinsicId()) == 0);
 
+		/*
         if(!sfm::SfMLocalizer::RefinePose(resectionData.optionalIntrinsic.get(), resectionData.pose, resectionData,
                                           true, resectionData.isNewIntrinsic || intrinsicsFirstUsage))
         {
             ALICEVISION_LOG_INFO("Resection of view " << viewIndex << " failed during pose refinement.");
             return false;
-        }
+        }*/
     }
     return true;
 }
@@ -1691,7 +1713,7 @@ void ReconstructionEngine_sequentialSfM::updateScene(const IndexT viewIndex, con
     _map_ACThreshold.insert(std::make_pair(viewIndex, resectionData.error_max));
 
     const View& view = *_sfmData.views.at(viewIndex);
-    _sfmData.setPose(view, CameraPose(resectionData.pose));
+    //_sfmData.setPose(view, CameraPose(resectionData.pose));
 
     // B. Update the observations into the global scene structure
     // - Add the new 2D observations to the reconstructed tracks
@@ -2078,8 +2100,8 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
                             landmark.X = X_euclidean;
                             landmark.descType = track.descType;
 
-                            landmark.observations[I] = Observation(xI, track.featPerView.at(I));
-                            landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
+                            //landmark.observations[I] = Observation(xI, track.featPerView.at(I));
+                            //landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
 
                             ++new_added_track;
                         } // critical
