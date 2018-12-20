@@ -2159,8 +2159,8 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
                             landmark.X = X_euclidean;
                             landmark.descType = track.descType;
 
-                            //landmark.observations[I] = Observation(xI, track.featPerView.at(I));
-                            //landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
+                            landmark.observations[I] = Observation(xI, track.featPerView.at(I));
+                            landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
 
                             ++new_added_track;
                         } // critical
