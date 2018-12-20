@@ -1064,9 +1064,14 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         Mat3 rotZ = Mat3::Identity();
         Mat3 rot = Mat3::Identity();
         Mat3 rotZoffest = Mat3::Identity();
+        Mat3 rotYoffest = Mat3::Identity();
+        Mat3 rotZoffestNext = Mat3::Identity(); 
         Mat3 rotRes = Mat3::Identity();
         Mat3 rotNext = Mat3::Identity();
         Mat3 rotYnext = Mat3::Identity();
+        Mat3 rotXnext = Mat3::Identity();
+        Mat3 rot45 = Mat3::Identity();
+        Mat3 rotNext45 = Mat3::Identity();
 
         int thetaRot = theta;
 
@@ -1084,28 +1089,69 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         rotYnext(6) = -std::sin(camRotNext);
         rotYnext(8) = std::cos(camRotNext);
 
-		rotNext = rotYnext;
+		rotX(4) = std::cos(theta );
+        rotX(5) = -std::sin(theta);
+        rotX(7) = std::sin(theta );
+        rotX(8) = std::cos(theta );
+
+		rotYoffest(0) = std::cos(M_PI);
+        rotYoffest(2) = std::sin(M_PI);
+        rotYoffest(6) = -std::sin(M_PI);
+        rotYoffest(8) = std::cos(M_PI);
+
+
+		if(step % 12 == 0)
+        {
+            
+            _nextCol++;
+        }
+		
+		rot45(0) = std::cos(pi);
+        rot45(2) = std::sin(pi);
+        rot45(6) = -std::sin(pi);
+        rot45(8) = std::cos(pi);
+
+		rotNext45(0) = std::cos(piNext);
+        rotNext45(2) = std::sin(piNext);
+        rotNext45(6) = -std::sin(piNext);
+        rotNext45(8) = std::cos(piNext);
+		
 
 		rotZoffest(0) = std::cos(M_PI);
         rotZoffest(1) = std::sin(M_PI);
         rotZoffest(3) = -std::sin(M_PI);
         rotZoffest(4) = std::cos(M_PI);
 
+		 
+		rotZoffestNext(0) = std::cos(M_PI);
+        rotZoffestNext(1) = std::sin(M_PI);
+        rotZoffestNext(3) = -std::sin(M_PI);
+        rotZoffestNext(4) = std::cos(M_PI);
+
+		rotX(4) = std::cos(theta - M_PI_2);
+        rotX(5) = -std::sin(theta - M_PI_2);
+        rotX(7) = std::sin(theta - M_PI_2);
+        rotX(8) = std::cos(theta - M_PI_2);
+
+        rotNext = rotZoffestNext * rotYoffest * rotX;
 
 
-        float z = radie * std::sin(theta) * std::sin(-pi);
-        float x = radie * std::sin(theta) * std::cos(pi);
+        float z = radie * std::sin(theta) * 1;//std::sin(-M_PI_4);
+        float x = 0; // radie * std::sin(theta) * std::cos(pi);
         float y = radie * std::cos(theta);
+        /*
 		if(fabs(std::sin(-pi)) < 0.0001)
         {
             ALICEVISION_LOG_INFO("z==0.0");
-            z = 0.0;
-        }
+           z = 0.0;
+        }*/
 
 		ALICEVISION_LOG_INFO(" z: " << radie * std::sin(theta) * std::sin(-pi));
 
-		
+		// get rid of offset angle when rotating horizontally
+		//thetatheta - M_PI_2;
         // z ==0 && x > 0.0
+        /*
         if(z == 0.0 && x > 0.0)
         {
             ALICEVISION_LOG_INFO("z==0 filepath: " << viewI->getImagePath());
@@ -1135,7 +1181,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
             rotX(8) = std::cos(theta - M_PI_2);
 
             rot = rotY * rotX;
-            rotNext = rotYnext * rotX;
+            //rotNext = rotX;
         }
         else if(z > 0.0)
         {
@@ -1145,25 +1191,38 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
             rotX(7) = -std::sin(theta - M_PI_2);
             rotX(8) = std::cos(theta - M_PI_2);
 
+			rotZ(0) = std::cos(M_PI_4);
+            rotZ(1) = -std::sin( M_PI_4);
+            rotZ(3) = std::sin( M_PI_4);
+            rotZ(4) = std::cos( M_PI_4);
+
             rot = rotY * rotX;
-            rotNext = rotYnext * rotX;
-        }
+            
+        }*/
 		
+		rot = rotZoffestNext * rotYoffest * rotX;
 
         ALICEVISION_LOG_INFO("pi: " << pi);
         ALICEVISION_LOG_INFO("theta: " << theta);
 
-        const Pose3& initPoseI = Pose3(rot * rotZoffest, Vec3(x, y, z));
+        const Pose3& initPoseI = Pose3(rot, Vec3(x, y, z));
         
-        const Pose3& initPoseJ = Pose3(rotNext * rotZoffest, Vec3(radie * std::sin(theta) * std::cos(piNext),
-												  radie * std::cos(theta),
-                                                  radie * std::sin(theta) * std::sin(-piNext))); 
+        const Pose3& initPoseJ = Pose3(rotNext, Vec3(x, y,z));
+
+		const Pose3& initPoseRot = Pose3(rot45, Vec3(0,1,0));
+
+		const Pose3& initPoseRotNext = Pose3(rotNext45, Vec3(0, 1, 0));
+
+
+		
+      
+
         // Init poses
         // const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
         //const Pose3& initPoseJ = relativePose_info.relativePose;
 
-        _sfmData.setPose(*viewI, CameraPose(initPoseI));
-        _sfmData.setPose(*viewJ, CameraPose(initPoseJ));
+        _sfmData.setPose(*viewI, CameraPose(initPoseI * initPoseRot));
+        _sfmData.setPose(*viewJ, CameraPose(initPoseJ * initPoseRotNext));
 
         // Triangulate
         const std::set<IndexT> prevImageIndex = {static_cast<IndexT>(I)};

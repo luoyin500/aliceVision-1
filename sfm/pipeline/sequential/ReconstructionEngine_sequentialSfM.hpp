@@ -384,6 +384,7 @@ private:
 
   int _nextRow = 13;
   int _cameraNrOnRow = 0;
+  int _nextCol = 0;
 
   // Data providers
 
