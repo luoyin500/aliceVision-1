@@ -365,6 +365,8 @@ private:
   std::size_t removeOutliers(double precision);
 
   // Parameters
+  int _nextRow = 12;
+  int _cameraNrOnRow = 0;
 
   Pair _userInitialImagePair;
   int _minInputTrackLength = 2;
@@ -381,10 +383,6 @@ private:
   float _maxAngleInitialPair = 40.0f;
   bool _useTrackFiltering = true;
   robustEstimation::ERobustEstimator _localizerEstimator = robustEstimation::ERobustEstimator::ACRANSAC;
-
-  int _nextRow = 13;
-  int _cameraNrOnRow = 0;
-  int _nextCol = 0;
 
   // Data providers
 
