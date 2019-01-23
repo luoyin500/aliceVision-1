@@ -1029,7 +1029,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         float x = 0;
         float y = 0;
 
-        float scaleFact = 1.0;
+        float scaleFact = 4.0;
 
         // each cricle starts with same orientation and location, then we rotate each camera by the step
         if(step >= (camerasPairsPerRow * 0) && step < camerasPairsPerRow)
@@ -1257,15 +1257,16 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 		Vec3 location = Vec3(x, y, z);
 
         // putting together orientation and location as rotation and center members in a Pose3 
-        const Pose3& initPoseI = Pose3(orientation,  location);
+        const Pose3& initPoseI = Pose3(orientation, location);
 
-        const Pose3& initPoseJ = Pose3(orientation,  location);
+        const Pose3& initPoseJ = Pose3(orientation, location);
 
         const Pose3& rigRotX = Pose3(RotationAroundY(M_PI_2), Vec3(1, 0, 0));
-        const Pose3& rigTranslateX = Pose3(Mat3::Identity(), Vec3(1, 0, 0));
+        const Pose3& rigTranslateX = Pose3(Mat3::Identity(), Vec3(scaleFact, 0, 0));
 
-		Mat3 rotOrbit1 = RotationAroundY(pi);
-        Mat3 rotNextOrbit1 = RotationAroundY(piNext);
+		// the rig is rotating CCW
+		Mat3 rotOrbit1 = RotationAroundY(-pi);
+        Mat3 rotNextOrbit1 = RotationAroundY(-piNext);
         // calculate the global rotation for first camera
         const Pose3& initPoseRot = Pose3(rotOrbit1 , Vec3(0, 1, 0));
         // calculate the global rotation for secondc camera
@@ -1278,6 +1279,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         // Triangulate
         const std::set<IndexT> prevImageIndex = {static_cast<IndexT>(I)};
         const std::set<IndexT> newImageIndex = {static_cast<IndexT>(J)};
+
 
         triangulate(_sfmData, prevImageIndex, newImageIndex);
 
@@ -1321,6 +1323,8 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
 
                 return false;
             }
+            ALICEVISION_LOG_INFO("BA of initial pair " << current_pair.first << ", " << current_pair.second
+                                                          << " sucsess.");
             ALICEVISION_LOG_DEBUG("Initial Pair, bundle iteration: "
                                   << bundleAdjustmentIteration << " took "
                                   << std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -1329,6 +1333,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
                                   << " msec.");
             ++bundleAdjustmentIteration;
         } while(removeOutliers(_maxReprojectionError) > nbOutliersThreshold);
+
 
         Save(_sfmData, (fs::path(_outputFolder) / ("initialPair_afterBA" + _sfmdataInterFileExtension)).string(),
              _sfmdataInterFilter);
@@ -1803,13 +1808,12 @@ bool ReconstructionEngine_sequentialSfM::computeResection(const IndexT viewIndex
         // If we use a camera intrinsic for the first time we need to refine it.
         const bool intrinsicsFirstUsage = (reconstructedIntrinsics.count(view_I->getIntrinsicId()) == 0);
 
-        /*
         if(!sfm::SfMLocalizer::RefinePose(resectionData.optionalIntrinsic.get(), resectionData.pose, resectionData,
                                           true, resectionData.isNewIntrinsic || intrinsicsFirstUsage))
         {
             ALICEVISION_LOG_INFO("Resection of view " << viewIndex << " failed during pose refinement.");
             return false;
-        }*/
+        }
     }
     return true;
 }
@@ -1822,7 +1826,7 @@ void ReconstructionEngine_sequentialSfM::updateScene(const IndexT viewIndex, con
     _map_ACThreshold.insert(std::make_pair(viewIndex, resectionData.error_max));
 
     const View& view = *_sfmData.views.at(viewIndex);
-    //_sfmData.setPose(view, CameraPose(resectionData.pose));
+    _sfmData.setPose(view, CameraPose(resectionData.pose));
 
     // B. Update the observations into the global scene structure
     // - Add the new 2D observations to the reconstructed tracks
@@ -2097,8 +2101,10 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
             if(indexAll == indexNew)
                 continue;
 
+			
             const std::size_t I = std::min((IndexT)indexNew, indexAll);
             const std::size_t J = std::max((IndexT)indexNew, indexAll);
+            ALICEVISION_LOG_INFO("I: " << I << " J: " << J);
 
             // Find track correspondences between I and J
             const std::set<std::size_t> set_viewIndex = {I, J};
@@ -2112,6 +2118,7 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
             const IntrinsicBase* camJ = scene.getIntrinsics().at(viewJ->getIntrinsicId()).get();
             const Pose3 poseI = scene.getPose(*viewI).getTransform();
             const Pose3 poseJ = scene.getPose(*viewJ).getTransform();
+
 
             std::size_t new_putative_track = 0, new_added_track = 0, extented_track = 0;
             for(const std::pair<std::size_t, track::Track>& trackIt : map_tracksCommonIJ)
@@ -2198,7 +2205,8 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
                     const double& acThresholdJ =
                         (acThresholdItJ != _map_ACThreshold.end()) ? acThresholdItJ->second : 4.0;
 
-                    if(angle > _minAngleForTriangulation && poseI.depth(X_euclidean) > 0 &&
+					ALICEVISION_LOG_INFO("angle: " << angle);
+                    if(45 > _minAngleForTriangulation && poseI.depth(X_euclidean) > 0 &&
                        poseJ.depth(X_euclidean) > 0 && residualI.norm() < acThresholdI &&
                        residualJ.norm() < acThresholdJ)
                     {
@@ -2209,8 +2217,9 @@ void ReconstructionEngine_sequentialSfM::triangulate(SfMData& scene, const std::
                             landmark.X = X_euclidean;
                             landmark.descType = track.descType;
 
-                            // landmark.observations[I] = Observation(xI, track.featPerView.at(I));
-                            // landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
+							// can be comment out to disable point cloud
+                            landmark.observations[I] = Observation(xI, track.featPerView.at(I));
+                            landmark.observations[J] = Observation(xJ, track.featPerView.at(J));
 
                             ++new_added_track;
                         } // critical
@@ -2236,12 +2245,12 @@ bool ReconstructionEngine_sequentialSfM::BundleAdjustment(bool fixedIntrinsics)
     BundleAdjustmentCeres::BA_options options;
     if(_sfmData.getPoses().size() > 100)
     {
-        ALICEVISION_LOG_DEBUG("Global BundleAdjustment sparse");
+        ALICEVISION_LOG_INFO("Global BundleAdjustment sparse");
         options.setSparseBA();
     }
     else
     {
-        ALICEVISION_LOG_DEBUG("Global BundleAdjustment dense");
+        ALICEVISION_LOG_INFO("Global BundleAdjustment dense");
         options.setDenseBA();
     }
     BundleAdjustmentCeres bundle_adjustment_obj(options);
