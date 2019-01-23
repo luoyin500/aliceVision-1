@@ -914,7 +914,8 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
     /*
     if(step == _sfmData.getViews().size())
     {
-      
+      
+
     }*/
 
     // a. Assert we have valid pinhole cameras
@@ -1007,332 +1008,272 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& current_p
         float rotAngle = 45.0;
         float camerasPairsPerRow = 4;
 
-        float offsetCamRot = 90.0;
-
         float radie = 13.0;
         float piDeg = 0.0;
         float piNextDeg = rotAngle;
-        float camRotDeg = offsetCamRot;
-        float camRotNextDeg = offsetCamRot - rotAngle;
-        float thetaDeg = 8.7 * _nextRow;
 
         if(step > 0)
         {
             piDeg = rotAngle * (step * 2);
             piNextDeg = rotAngle * (step * 2) + rotAngle;
-
-            camRotDeg = offsetCamRot - rotAngle * (step * 2);
-            camRotNextDeg = offsetCamRot - rotAngle * (step * 2) - rotAngle;
         }
 
         // convert to radians
         float pi = piDeg * M_PI / 180.0;
-        float theta = thetaDeg * M_PI / 180.0;
 
-        float piNext = piNextDeg * M_PI / 180.0;
-
-        Mat3 rotX = Mat3::Identity();
-        Mat3 rotOffsetX = Mat3::Identity();
-
-        Mat3 rotLocal = Mat3::Identity();
-
-        Mat3 rotZoffest = Mat3::Identity();
-        Mat3 rotYoffest = Mat3::Identity();
+        float piNext =piNextDeg * M_PI / 180.0;
 
         Mat3 orientation = Mat3::Identity();
 
-        Mat3 rotOrbit = Mat3::Identity();
-        Mat3 rotNextOrbit = Mat3::Identity();
+        float z = 0;
+        float x = 0;
+        float y = 0;
 
-        rotX(4) = std::cos(theta);
-        rotX(5) = -std::sin(theta);
-        rotX(7) = std::sin(theta);
-        rotX(8) = std::cos(theta);
-
-		float offsetXRad = 15 * M_PI / 180.0;
-
-        rotOffsetX(4) = std::cos(offsetXRad);
-        rotOffsetX(5) = std::sin(offsetXRad);
-        rotOffsetX(7) = -std::sin(offsetXRad);
-        rotOffsetX(8) = std::cos(offsetXRad);
-
-        rotX(4) = std::cos(theta - M_PI_2);
-        rotX(5) = -std::sin(theta - M_PI_2);
-        rotX(7) = std::sin(theta - M_PI_2);
-        rotX(8) = std::cos(theta - M_PI_2);
-
-		float offsetYRad = 1 * M_PI / 180.0;
-
-        rotYoffest(0) = std::cos(M_PI_2 + offsetYRad);
-        rotYoffest(2) = std::sin(M_PI_2 + offsetYRad);
-        rotYoffest(6) = -std::sin(M_PI_2 + offsetYRad);
-        rotYoffest(8) = std::cos(M_PI_2 + offsetYRad);
-
-        rotZoffest(0) = std::cos(M_PI);
-        rotZoffest(1) = std::sin(M_PI);
-        rotZoffest(3) = -std::sin(M_PI);
-        rotZoffest(4) = std::cos(M_PI);
-
-        rotOrbit(0) = std::cos(pi);
-        rotOrbit(2) = std::sin(pi);
-        rotOrbit(6) = -std::sin(pi);
-        rotOrbit(8) = std::cos(pi);
-
-        rotNextOrbit(0) = std::cos(piNext);
-        rotNextOrbit(2) = std::sin(piNext);
-        rotNextOrbit(6) = -std::sin(piNext);
-        rotNextOrbit(8) = std::cos(piNext);
-
-        float z = radie * std::sin(theta) * 1; // std::sin(-M_PI_4);
-        float x = 0;                           // radie * std::sin(theta) * std::cos(pi);
-        float y = radie * std::cos(theta);
-
-        float scaleFact = 0.0131;
-        float minRadie = 10;
-        /*
-        -1057.04059201079 131.793582115810 -557.664837835153
-        -971.619828917655 121.940272433841 -687.874674645891
-        -877.843362548072 105.966429733722 -792.708098184077
-        -761.352952711828 94.1279191001301 -901.463225895317
-        -643.612227925782 77.1416090266953 -988.688240016276
-        -517.555027222001 62.7455547197297 -1063.38057319070
-        -382.573845129433 43.6214157452838 -1116.63104083780
-        -244.154165137669 23.8461454660322 -1156.64231369488
-        -110.170518338464 1.79682659477223 -1180.51946320981
-         115.564125677598 55.5146271941007 -1190.96020549383 */
+        float scaleFact = 1.0;
 
         // each cricle starts with same orientation and location, then we rotate each camera by the step
         if(step >= (camerasPairsPerRow * 0) && step < camerasPairsPerRow)
         {
-            x = 151.788 * scaleFact + minRadie;
-            y = 551.082 * scaleFact;
-            z = 1027.4745 * scaleFact + minRadie;
+            x = 0.090393380613003199 * scaleFact;
+            y = -0.083690029676692909 * scaleFact;
+            z = -0.20376362926175437 * scaleFact;
 
-            orientation(0) = 0.41233;
-            orientation(1) = 0.067896;
-            orientation(2) = 0.9085;
-            orientation(3) = 0.0083858;
-            orientation(4) = 0.99689;
-            orientation(5) = -0.078308;
-            orientation(6) = -0.911;
-            orientation(7) = 0.039907;
-            orientation(8) = 0.41048;
+            orientation(0) = 0.99708930283566743;
+            orientation(1) = 0.023256984098037666;
+            orientation(2) = -0.072608779505968543;
+            orientation(3) = -0.020842631770513622;
+            orientation(4) = 0.99921010921383002;
+            orientation(5) = 0.033834041227213271;
+            orientation(6) = 0.073338304258835377;
+            orientation(7) = -0.032222202524805996;
+            orientation(8) = 0.99678644793801696;
+            
+
         }
         else if(step >= (camerasPairsPerRow * 1) && step < camerasPairsPerRow * 2)
         {
-            x = 164.793 * scaleFact + minRadie;
-            y = 753.812 * scaleFact;
-            z = 954.7422 * scaleFact + minRadie;
+            x = 0.089551664543092407 * scaleFact;
+            y = 0.13148854664105514 * scaleFact;
+            z = -0.19591234173938007 * scaleFact;
 
-            orientation(0) = 0.56182;
-            orientation(1) = 0.085198;
-            orientation(2) = 0.82286;
-            orientation(3) = -0.025804;
-            orientation(4) = 0.996;
-            orientation(5) = -0.085507;
-            orientation(6) = -0.82686;
-            orientation(7) = 0.026807;
-            orientation(8) = 0.56177;
+            orientation(0) = 0.99731893324575949;
+            orientation(1) = 0.012173358902413375;
+            orientation(2) = -0.072157845883683;
+            orientation(3) = -0.02033102342516007;
+            orientation(4) = 0.99333893389232997;
+            orientation(5) = -0.11342139084024189;
+            orientation(6) = 0.070296478404155552;
+            orientation(7) = 0.11458434337501064;
+            orientation(8) = 0.99092322274598632;
+
         }
         else if(step >= (camerasPairsPerRow * 2) && step < camerasPairsPerRow * 3)
         {
-            x = 172.6037 * scaleFact + minRadie;
-            y = 884.3197 * scaleFact;
-            z = 869.8458 * scaleFact + minRadie;
+            x = 0.085281499970466842 * scaleFact;
+            y = 0.29308923993224867 * scaleFact;
+            z = -0.16236154040642295 * scaleFact;
 
-            orientation(0) = 0.66337;
-            orientation(1) = 0.075693;
-            orientation(2) = 0.74445;
-            orientation(3) = -0.01352;
-            orientation(4) = 0.99592;
-            orientation(5) = -0.089213;
-            orientation(6) = -0.74817;
-            orientation(7) = 0.049117;
-            orientation(8) = 0.66169;
+            orientation(0) = 0.99745448197014219;
+            orientation(1) = -0.011672211798191424;
+            orientation(2) = -0.070344266784247503;
+            orientation(3) = -0.0042329950644463656;
+            orientation(4) = 0.97507913839751104;
+            orientation(5) = -0.22181694167658131;
+            orientation(6) = 0.071180321370864844;
+            orientation(7) = 0.22155006958632548;
+            orientation(8) = 0.9725476484552491;
+
+            
         }
         else if(step >= (camerasPairsPerRow * 3) && step < camerasPairsPerRow * 4)
         {
-            x = 172.1237 * scaleFact + minRadie;
-            y = 1006.6858 * scaleFact;
-            z = 764.3152 * scaleFact + minRadie;
+            x = 0.08427594045190509 * scaleFact;
+            y = 0.45886945123999839 * scaleFact;
+            z = -0.11701720385241045 * scaleFact;
 
-            orientation(0) = 0.74386;
-            orientation(1) = 0.13143;
-            orientation(2) = 0.65529;
-            orientation(3) = -0.095978;
-            orientation(4) = 0.99132;
-            orientation(5) = -0.089871;
-            orientation(6) = -0.66141;
-            orientation(7) = 0.0039574;
-            orientation(8) = 0.75001;
+            orientation(0) = 0.99686310245301424;
+            orientation(1) = -0.035849051063014087;
+            orientation(2) = -0.070560615825208117;
+            orientation(3) = 0.011014680539000251;
+            orientation(4) = 0.94569828579481852;
+            orientation(5) = -0.32485909108006406;
+            orientation(6) = 0.078374943574939626;
+            orientation(7) = 0.32306283875218922;
+            orientation(8) = 0.94312659300700552;
+
         }
         else if(step >= (camerasPairsPerRow * 4) && step < camerasPairsPerRow * 5)
         {
-            x = 168.7753 * scaleFact + minRadie;
-            y = 1119.7959 * scaleFact;
-            z = 632.6826 * scaleFact + minRadie;
+            x = 0.080220076906912907 * scaleFact;
+            y = 0.60811004460198992 * scaleFact;
+            z = -0.057832001437625749 * scaleFact;
 
-            orientation(0) = 0.83136;
-            orientation(1) = 0.11403;
-            orientation(2) = 0.5439;
-            orientation(3) = -0.079918;
-            orientation(4) = 0.99308;
-            orientation(5) = -0.086041;
-            orientation(6) = -0.54995;
-            orientation(7) = 0.028064;
-            orientation(8) = 0.83473;
+            orientation(0) = 0.99739856065972332;
+            orientation(1) = -0.027130732072528467;
+            orientation(2) = -0.066783490258602529;
+            orientation(3) = -0.0037225115949061065;
+            orientation(4) = 0.90584470158804853;
+            orientation(5) = -0.42359357822361399;
+            orientation(6) = 0.071987874682740649;
+            orientation(7) = 0.42274022754177043;
+            orientation(8) = 0.90338720708043796;
+
+            
         }
         else if(step >= (camerasPairsPerRow * 5) && step < camerasPairsPerRow * 6)
         {
-            x = 163.399 * scaleFact + minRadie;
-            y = 1202.6958 * scaleFact;
-            z = 498.2141 * scaleFact + minRadie;
+            x = 0.073811265635822298 * scaleFact;
+            y = 0.75383436078619825 * scaleFact;
+            z = 0.023085024628513619 * scaleFact;
 
-            orientation(0) = 0.89342;
-            orientation(1) = 0.080994;
-            orientation(2) = 0.44185;
-            orientation(3) = -0.050781;
-            orientation(4) = 0.99552;
-            orientation(5) = -0.079805;
-            orientation(6) = -0.44634;
-            orientation(7) = 0.048862;
-            orientation(8) = 0.89353;
+            orientation(0) = 0.99724323982904828;
+            orientation(1) = -0.03460705282651675;
+            orientation(2) = -0.065637432231356943;
+            orientation(3) = -0.0050412128928479238;
+            orientation(4) = 0.85093630515674834;
+            orientation(5) = -0.52524469605960822;
+            orientation(6) = 0.074030445006309939;
+            orientation(7) = 0.52412761467112556;
+            orientation(8) = 0.84841601632178298;
+
+            
         }
         else if(step >= (camerasPairsPerRow * 6) && step < camerasPairsPerRow * 7)
         {
-            x = 157.235 * scaleFact + minRadie;
-            y = 1271.5612 * scaleFact;
-            z = 342.3299 * scaleFact + minRadie;
+            x = 0.074041500770919866 * scaleFact;
+            y = 0.88535621204007642 * scaleFact;
+            z = 0.12566776322674802 * scaleFact;
 
-            orientation(0) = 0.94029;
-            orientation(1) = 0.10195;
-            orientation(2) = 0.32474;
-            orientation(3) = -0.082015;
-            orientation(4) = 0.99384;
-            orientation(5) = -0.074546;
-            orientation(6) = -0.33034;
-            orientation(7) = 0.043462;
-            orientation(8) = 0.94286;
+            orientation(0) = 0.99769444692316656;
+            orientation(1) = -0.02542036666644289;
+            orientation(2) = -0.062925317140402323;
+            orientation(3) = -0.019075976698329663;
+            orientation(4) = 0.78477652148622168;
+            orientation(5) = -0.61948520437294585;
+            orientation(6) = 0.065129852538458863;
+            orientation(7) = 0.61925731023745645;
+            orientation(8) = 0.78248225924029047;
+
         }
         else if(step >= (camerasPairsPerRow * 7) && step < camerasPairsPerRow * 8)
         {
-            x = 148.3301 * scaleFact + minRadie;
-            y = 1315.6373 * scaleFact;
-            z = 203.0108 * scaleFact + minRadie;
+            x = 0.062433635263669782 * scaleFact;
+            y = 1.0229025050883769 * scaleFact;
+            z = 0.2510996227748945 * scaleFact;
 
-            orientation(0) = 0.97312;
-            orientation(1) = 0.088881;
-            orientation(2) = 0.21247;
-            orientation(3) = -0.07563;
-            orientation(4) = 0.9947;
-            orientation(5) = -0.069715;
-            orientation(6) = -0.21754;
-            orientation(7) = 0.051772;
-            orientation(8) = 0.97468;
+            orientation(0) = 0.99709709571869509;
+            orientation(1) = -0.051379964298353883;
+            orientation(2) = -0.05619146712841265;
+            orientation(3) = -0.0037051582995377801;
+            orientation(4) = 0.70438033109821896;
+            orientation(5) = -0.70981308875220017;
+            orientation(6) = 0.076050335379398329;
+            orientation(7) = 0.70796076757872906;
+            orientation(8) = 0.70214521151825693;
         }
         else if(step >= (camerasPairsPerRow * 8) && step < camerasPairsPerRow * 9)
         {
-            x = 139.941 * scaleFact + minRadie;
-            y = 1339.5803 * scaleFact;
-            z = 49.9175 * scaleFact + minRadie;
+            x = 0.059872519806881477 * scaleFact;
+            y = 1.1369188592736048 * scaleFact;
+            z = 0.38137105824323791 * scaleFact;
 
-            orientation(0) = 0.99169;
-            orientation(1) = 0.090742;
-            orientation(2) = 0.091195;
-            orientation(3) = -0.085517;
-            orientation(4) = 0.99455;
-            orientation(5) = -0.059665;
-            orientation(6) = -0.096112;
-            orientation(7) = 0.051371;
-            orientation(8) = 0.99404;
+            orientation(0) = 0.99830404341519086;
+            orientation(1) = -0.016888050371686857;
+            orientation(2) = -0.055712033309907309;
+            orientation(3) = -0.033210412380212051;
+            orientation(4) = 0.62078539129659216;
+            orientation(5) = -0.78327681343333111;
+            orientation(6) = 0.047813234678456044;
+            orientation(7) = 0.78379862956462254;
+            orientation(8) = 0.61917170710732783;
         }
         else if(step >= (camerasPairsPerRow * 9) && step < camerasPairsPerRow * 10)
         {
-            x = 129.1346 * scaleFact + minRadie;
-            y = 1341.5715 * scaleFact;
-            z = -92.0801 * scaleFact + minRadie;
+            x = 0.049313709115187933 * scaleFact;
+            y = 1.2417547722175599 * scaleFact;
+            z = 0.5420224517349127 * scaleFact;
 
-            orientation(0) = 0.99689;
-            orientation(1) = 0.0768;
-            orientation(2) = -0.017605;
-            orientation(3) = -0.077625;
-            orientation(4) = 0.99561;
-            orientation(5) = -0.052354;
-            orientation(6) = 0.013507;
-            orientation(7) = 0.053558;
-            orientation(8) = 0.99847;
+            orientation(0) = 0.99881480533226252;
+            orientation(1) = 0.0082005966493851126;
+            orientation(2) = -0.047976399027734623;
+            orientation(3) = -0.045444275312906311;
+            orientation(4) = 0.51011466215814572;
+            orientation(5) = -0.85890502926258694;
+            orientation(6) = 0.017429930876486449;
+            orientation(7) = 0.86006731228775035;
+            orientation(8) = 0.50988274715248605;
         }
         else if(step >= (camerasPairsPerRow * 10) && step < camerasPairsPerRow * 11)
         {
-            x = 115.2575 * scaleFact + minRadie;
-            y = 1324.6278 * scaleFact;
-            z = -245.1985 * scaleFact + minRadie;
+            x = 0.040468325098249387 * scaleFact;
+            y = 1.3239134409211395 * scaleFact;
+            z = 0.69784507125496864 * scaleFact;
 
-            orientation(0) = 0.9872;
-            orientation(1) = 0.095471;
-            orientation(2) = -0.12779;
-            orientation(3) = -0.10158;
-            orientation(4) = 0.99393;
-            orientation(5) = -0.042175;
-            orientation(6) = 0.12298;
-            orientation(7) = 0.054616;
-            orientation(8) = 0.9909;
+            orientation(0) = 0.99700465735087862;
+            orientation(1) = -0.065701134529016464;
+            orientation(2) = -0.040805320023948759;
+            orientation(3) = -0.010587099626341891;
+            orientation(4) = 0.40669568447263027;
+            orientation(5) = -0.91350234457982682;
+            orientation(6) = 0.076613487991075729;
+            orientation(7) = 0.91119810203541285;
+            orientation(8) = 0.40478190708689349;
+           
         }
         else if(step >= (camerasPairsPerRow * 11) && step < camerasPairsPerRow * 12)
         {
-            x = 102.0487 * scaleFact + minRadie;
-            y = 1296.4285 * scaleFact;
-            z = -391.5647 * scaleFact + minRadie;
+            x = 0.029729822778740367 * scaleFact;
+            y = 1.3830140128881652 * scaleFact;
+            z = 0.86877009639839897 * scaleFact;
 
-            orientation(0) = 0.96422;
-            orientation(1) = 0.11237;
-            orientation(2) = -0.24011;
-            orientation(3) = -0.12349;
-            orientation(4) = 0.99184;
-            orientation(5) = -0.031713;
-            orientation(6) = 0.23459;
-            orientation(7) = 0.060229;
-            orientation(8) = 0.97023;
+            orientation(0) = 0.99841900317406185;
+            orientation(1) = -0.044642792701870992;
+            orientation(2) = -0.03415428466079453;
+            orientation(3) = -0.019781661951469354;
+            orientation(4) = 0.28968684386060956;
+            orientation(5) = -0.95691703838134079;
+            orientation(6) = 0.052613495905048928;
+            orientation(7) = 0.95607978409432781;
+            orientation(8) = 0.28834574124615198;
         }
         else if(step >= (camerasPairsPerRow * 12) && step < camerasPairsPerRow * 13)
         {
-            x = 85.9175 * scaleFact + minRadie;
-            y = 1225.9805 * scaleFact;
-            z = -570.4471 * scaleFact + minRadie;
+            x = 0.014975953844498277 * scaleFact;
+            y = 1.4225791597093924 * scaleFact;
+            z = 1.1155732560267049 * scaleFact;
 
-            orientation(0) = 0.91605;
-            orientation(1) = -0.13073;
-            orientation(2) = 0.37917;
-            orientation(3) = 0.11341;
-            orientation(4) = 0.99123;
-            orientation(5) = 0.067767;
-            orientation(6) = -0.3847;
-            orientation(7) = -0.019076;
-            orientation(8) = 0.92284;
+            orientation(0) = 0.99768344119109464;
+            orientation(1) = -0.063447054228506689;
+            orientation(2) = -0.024540221735359968;
+            orientation(3) = -0.016577838358999879;
+            orientation(4) = 0.12310616712633637;
+            orientation(5) = -0.99225503117434755;
+            orientation(6) = 0.065976711409698005;
+            orientation(7) = 0.99036323787042269;
+            orientation(8) = 0.12176916944109439;
         }
 
-        rotLocal = rotZoffest * rotYoffest * rotX;
 
-        const Pose3& offsetRotX = Pose3(rotOffsetX, Vec3(1, 0, 0));
+		Vec3 location = Vec3(x, y, z);
 
-		
+        // putting together orientation and location as rotation and center members in a Pose3 
+        const Pose3& initPoseI = Pose3(orientation,  location);
 
-        // calculate init pose
-        const Pose3& initPoseI = Pose3(orientation * rotYoffest, rotOffsetX * Vec3(x - 11, y, z));
+        const Pose3& initPoseJ = Pose3(orientation,  location);
 
-        const Pose3& initPoseJ = Pose3(orientation * rotYoffest, rotOffsetX * Vec3(x - 11, y, z));
+        const Pose3& rigRotX = Pose3(RotationAroundY(M_PI_2), Vec3(1, 0, 0));
+        const Pose3& rigTranslateX = Pose3(Mat3::Identity(), Vec3(1, 0, 0));
 
+		Mat3 rotOrbit1 = RotationAroundY(pi);
+        Mat3 rotNextOrbit1 = RotationAroundY(piNext);
         // calculate the global rotation for first camera
-        const Pose3& initPoseRot = Pose3(rotOrbit, Vec3(0, 1, 0));
+        const Pose3& initPoseRot = Pose3(rotOrbit1 , Vec3(0, 1, 0));
         // calculate the global rotation for secondc camera
-        const Pose3& initPoseRotNext = Pose3(rotNextOrbit, Vec3(0, 1, 0));
+        const Pose3& initPoseRotNext = Pose3(rotNextOrbit1 , Vec3(0, 1, 0));
 
         // Init poses
-        // const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
-        // const Pose3& initPoseJ = relativePose_info.relativePose;
-
-        _sfmData.setPose(*viewI, CameraPose(initPoseI * initPoseRot));
-        _sfmData.setPose(*viewJ, CameraPose(initPoseJ * initPoseRotNext));
+        _sfmData.setPose(*viewI, CameraPose(initPoseI * rigRotX * rigTranslateX * initPoseRot));
+        _sfmData.setPose(*viewJ, CameraPose(initPoseJ * rigRotX * rigTranslateX * initPoseRotNext));
 
         // Triangulate
         const std::set<IndexT> prevImageIndex = {static_cast<IndexT>(I)};
