@@ -159,8 +159,6 @@ void SfMData::setPose(const View& view, const CameraPose& absolutePose)
 
     subPose.status = ERigSubPoseStatus::ESTIMATED; // sub-pose initialized
     subPose.pose = Pose3();  // the first sub-pose is set to identity
-
-	ALICEVISION_LOG_INFO("Set the pose:");
     viewPose.setTransform(absolutePose.getTransform()); // so the pose of the rig is the same than the pose
   }
   else
@@ -191,7 +189,6 @@ void SfMData::setPose(const View& view, const CameraPose& absolutePose)
       }
 
       //convert absolute pose to rig Pose
-      ALICEVISION_LOG_INFO("convert absolute pose to rig Pose:");
       viewPose.setTransform(subPose.pose.inverse() * absolutePose.getTransform());
     }
   }

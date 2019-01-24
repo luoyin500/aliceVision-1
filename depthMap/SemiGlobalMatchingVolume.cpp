@@ -62,7 +62,6 @@ SemiGlobalMatchingVolume::SemiGlobalMatchingVolume(float _volGpuMB, int _volDimX
 SemiGlobalMatchingVolume::~SemiGlobalMatchingVolume()
 {
     delete _volume;
-    delete _volumeSecondBest;
     delete _volumeStepZ;
     delete _volumeBestZ;
 }

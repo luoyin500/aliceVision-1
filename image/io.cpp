@@ -150,14 +150,17 @@ void readImage(const std::string& path, oiio::TypeDesc format, int nchannels, Im
   }
 
   // copy pixels from oiio to eigen
-  image.resize(inSpec.width, inSpec.height, false);
+  std::vector<T> pixels;
+  pixels.resize(inSpec.width * inSpec.height * nchannels);
   {
     oiio::ROI exportROI = inBuf.roi();
     exportROI.chbegin = 0;
     exportROI.chend = nchannels;
 
-    inBuf.get_pixels(exportROI, format, image.data());
+    inBuf.get_pixels(exportROI, format, pixels.data());
   }
+
+  image = Eigen::Map<typename Image<T>::Base>(pixels.data(), inSpec.height, inSpec.width);
 }
 
 template<typename T>

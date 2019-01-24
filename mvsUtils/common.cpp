@@ -215,7 +215,7 @@ std::string formatElapsedTime(long t1)
     int sec = (int)d1 - (int)floor(d1 / 60.0) * 60;
     int mil = (int)((d1 - (int)floor(d1)) * 1000);
 
-    std::string out = "Elapsed time2: " + num2strTwoDecimal(min) + " minutes " +
+    std::string out = "Elapsed time: " + num2strTwoDecimal(min) + " minutes " +
                                          num2strTwoDecimal(sec) + " seconds " +
                                          num2strThreeDigits(mil) + " miliseconds\n";
 

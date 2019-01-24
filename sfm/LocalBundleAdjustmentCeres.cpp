@@ -461,7 +461,6 @@ void LocalBundleAdjustmentCeres::updateCameraPoses(
     const LocalBundleAdjustmentData& localBA_data,
     sfmData::Poses & poses)
 {
-    int index = 0;
   for (sfmData::Poses::iterator itPose = poses.begin();
        itPose != poses.end(); ++itPose)
   {
@@ -481,8 +480,6 @@ void LocalBundleAdjustmentCeres::updateCameraPoses(
     Vec3 t_refined(map_poseblocks.at(poseId)[3], map_poseblocks.at(poseId)[4], map_poseblocks.at(poseId)[5]);
 
     // Update the pose
-    index++;
-    ALICEVISION_LOG_INFO("Update the pose, index : " << index; );
     itPose->second.setTransform(Pose3(R_refined, -R_refined.transpose() * t_refined));
   }
 }
