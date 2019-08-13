@@ -465,7 +465,7 @@ bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData p
                     v.setWidth(intrinsics->w());
                     v.setHeight(intrinsics->h());
                 }
-                updateIncompleteView(incompleteViews.at(i));
+                updateIncompleteView(incompleteViews.at(i), 0);
             }
 
             // copy complete views in the SfMData views map

@@ -16,7 +16,7 @@ namespace fs = boost::filesystem;
 namespace aliceVision {
 namespace sfmData {
 
-std::size_t computeUID(const View& view)
+std::size_t computeUID(const View& view, int index)
 {
   std::size_t uid = 0;
 
@@ -67,7 +67,7 @@ std::size_t computeUID(const View& view)
   // limit to integer to maximize compatibility (like Alembic in Maya)
   uid = std::abs((int) uid);
 
-  return uid;
+  return index;
 }
 
 void updateStructureWithNewUID(Landmarks &landmarks, const std::map<std::size_t, std::size_t> &oldIdToNew)
@@ -138,12 +138,13 @@ void regenerateViewUIDs(Views &views, std::map<std::size_t, std::size_t> &oldIdT
   
   Views newViews;
 
+  int index = 0;
   for(auto const &iter : views)
   {
     const View& currentView = *iter.second.get();
 
     // compute the view UID
-    const std::size_t uid = computeUID(currentView);
+    const std::size_t uid = computeUID(currentView, index);
 
     // update the mapping
     assert(oldIdToNew.count(currentView.getViewId()) == 0);
@@ -153,6 +154,8 @@ void regenerateViewUIDs(Views &views, std::map<std::size_t, std::size_t> &oldIdT
     assert(newViews.count(uid) == 0);
     newViews.emplace(uid, iter.second);
     newViews[uid]->setViewId(uid);
+
+	index++;
   }
   
   assert(newViews.size() == views.size());

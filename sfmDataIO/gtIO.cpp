@@ -214,10 +214,11 @@ bool readGt(const std::string& rootPath, sfmData::SfMData& sfmData, bool useUID)
 
     std::shared_ptr<sfmData::View> viewPtr = std::make_shared<sfmData::View>(imgFile, UndefinedIndexT, index);
 
-    updateIncompleteView(*viewPtr);
+    updateIncompleteView(*viewPtr, index);
 
     // Update intrinsics with width and height of image
     sfmData.views.emplace(viewPtr->getViewId(), viewPtr);
+    ALICEVISION_LOG_INFO("Update intrinsics with width and height of image");
     sfmData.setPose(*sfmData.views.at(viewPtr->getViewId()), sfmData::CameraPose(pose));
     sfmData.intrinsics.emplace(index, pinholeIntrinsic);
   }

@@ -20,7 +20,7 @@ namespace fs = boost::filesystem;
 namespace aliceVision {
 namespace sfmDataIO {
 
-void updateIncompleteView(sfmData::View& view)
+void updateIncompleteView(sfmData::View& view, int index)
 {
   // check if the view is complete
   if(view.getViewId() != UndefinedIndexT &&
@@ -43,7 +43,8 @@ void updateIncompleteView(sfmData::View& view)
     view.setMetadata(metadata);
 
   // reset viewId
-  view.setViewId(sfmData::computeUID(view));
+  view.setViewId(sfmData::computeUID(view, index));
+  view.setPoseId(sfmData::computeUID(view, index));
 
   if(view.getPoseId() == UndefinedIndexT)
   {
@@ -54,11 +55,17 @@ void updateIncompleteView(sfmData::View& view)
       throw std::invalid_argument("Error: Can't find poseId for'" + fs::path(view.getImagePath()).filename().string() + "' marked as part of a rig.");
     }
     else
-      view.setPoseId(view.getViewId());
+    {
+        ALICEVISION_LOG_ERROR("set pose id");
+        view.setPoseId(view.getViewId());
+    }
+      
   }
   else if((!view.isPartOfRig()) && (view.getPoseId() != view.getViewId()))
   {
-    ALICEVISION_LOG_ERROR("Error: Bad poseId for image '" << fs::path(view.getImagePath()).filename().string() << "' (viewId should be equal to poseId)." << std::endl);
+      ALICEVISION_LOG_ERROR("Error: Bad poseId for image '" << fs::path(view.getImagePath()).filename().string()
+                                                            << "' (viewId should be equal to poseId)."
+                                                            << "poseid: " << view.getPoseId() << "  viewID: " << view.getViewId() <<  std::endl);
     throw std::invalid_argument("Error: Bad poseId for image '" + fs::path(view.getImagePath()).filename().string() + "'.");
   }
 }

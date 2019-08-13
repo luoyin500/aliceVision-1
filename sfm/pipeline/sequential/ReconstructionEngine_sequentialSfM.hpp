@@ -365,6 +365,8 @@ private:
   std::size_t removeOutliers(double precision);
 
   // Parameters
+  int _nextRow = 12;
+  int _cameraNrOnRow = 0;
 
   Pair _userInitialImagePair;
   int _minInputTrackLength = 2;
