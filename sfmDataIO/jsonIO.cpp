@@ -86,7 +86,7 @@ void loadView(sfmData::View& view, bpt::ptree& viewTree)
     view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
     view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
 
-    ALICEVISION_LOG_INFO("path:" << viewTree.get<std::string>("path"));
+    ALICEVISION_LOG_INFO("loadView path:" << viewTree.get<std::string>("path"));
     view.setImagePath(viewTree.get<std::string>("path"));
     view.setWidth(viewTree.get<std::size_t>("width", 0));
     view.setHeight(viewTree.get<std::size_t>("height", 0));

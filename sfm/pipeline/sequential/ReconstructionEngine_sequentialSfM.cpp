@@ -301,16 +301,27 @@ void ReconstructionEngine_sequentialSfM::createInitialReconstruction(
     const std::vector<Pair>& initialImagePairCandidates)
 {
     // initial pair Essential Matrix and [R|t] estimation.
+    int step = 0;
     for(const auto& initialPairCandidate : initialImagePairCandidates)
     {
-        if(makeInitialPair3D(initialPairCandidate,0))
+        const View* viewI = _sfmData.getViews().at(initialPairCandidate.first).get();
+        ALICEVISION_LOG_INFO("initialPairCandidate: "
+                             << viewI->getImagePath() << " size: " << _sfmData.getViews().size()
+                             << "pair candidate size: " << initialImagePairCandidates.size() << " step: " << step);
+        if(makeInitialPair3D(initialPairCandidate,step))
         {
             // successfully found an initial image pair
             ALICEVISION_LOG_INFO("Initial pair is: " << initialPairCandidate.first << ", "
                                                      << initialPairCandidate.second);
+        
+        }
+        if(step == initialImagePairCandidates.size() - 1)
+        {
             return;
         }
+        step++;
     }
+    ALICEVISION_LOG_INFO("Initialization failed after trying all possible initial image pairs.");
     throw std::runtime_error("Initialization failed after trying all possible initial image pairs.");
 }
 
@@ -1050,26 +1061,45 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
 {
     // compute robust Essential matrix for ImageId [I,J]
     // use min max to have I < J
-    const std::size_t I = std::min(currentPair.first, currentPair.second);
-    const std::size_t J = std::max(currentPair.first, currentPair.second);
+    //const std::size_t I = std::min(currentPair.first, currentPair.second);
+    //const std::size_t J = std::max(currentPair.first, currentPair.second);
+
+    ALICEVISION_LOG_INFO("_sfmData.getViews().size(): " << _sfmData.getViews().size() << " step: " << step);
+    int next = 1;
+
+    std::size_t I = step;
+    std::size_t J = step + next;
+
+	// "rig step"
+    if(step > 0)
+    {
+        I = step * 2;
+        J = step * 2 + next;
+    }
+
+    
 
     // a. assert we have valid pinhole cameras
-    const View& viewI = _sfmData.getView(I);
-    const Intrinsics::const_iterator itIntrinsicI = _sfmData.getIntrinsics().find(viewI.getIntrinsicId());
-    const View& viewJ = _sfmData.getView(J);
-    const Intrinsics::const_iterator itIntrinsicJ = _sfmData.getIntrinsics().find(viewJ.getIntrinsicId());
+    //const View& viewI = _sfmData.getView(I);
+    const View* viewI = _sfmData.getViews().at(I).get();
+
+    const Intrinsics::const_iterator itIntrinsicI = _sfmData.getIntrinsics().find(viewI->getIntrinsicId());
+    //const View& viewJ = _sfmData.getView(J);
+    const View* viewJ = _sfmData.getViews().at(J).get();
+
+    const Intrinsics::const_iterator itIntrinsicJ = _sfmData.getIntrinsics().find(viewJ->getIntrinsicId());
 
     ALICEVISION_LOG_INFO("Initial pair is:\n"
                          "\t- [A] view id: "
-                         << I << ", filepath: " << viewI.getImagePath()
+                         << I << ", filepath: " << viewI->getImagePath()
                          << "\n"
                             "\t- [B] view id: "
-                         << J << ", filepath: " << viewJ.getImagePath());
+                         << J << ", filepath: " << viewJ->getImagePath());
 
     if(itIntrinsicI == _sfmData.getIntrinsics().end() || itIntrinsicJ == _sfmData.getIntrinsics().end())
     {
-        ALICEVISION_LOG_WARNING("Can't find initial image pair intrinsics: " << viewI.getIntrinsicId() << ", "
-                                                                             << viewJ.getIntrinsicId());
+        ALICEVISION_LOG_WARNING("Can't find initial image pair intrinsics: " << viewI->getIntrinsicId() << ", "
+                                                                             << viewJ->getIntrinsicId());
         return false;
     }
 
@@ -1079,7 +1109,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
     if(camI == nullptr || camJ == nullptr || !camI->isValid() || !camJ->isValid())
     {
         ALICEVISION_LOG_WARNING("Can't find initial image pair intrinsics (NULL ptr): "
-                                << viewI.getIntrinsicId() << ", " << viewJ.getIntrinsicId());
+                                << viewI->getIntrinsicId() << ", " << viewJ->getIntrinsicId());
         return false;
     }
 
@@ -1123,12 +1153,282 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
     // bound min precision at 1 pix.
     relativePoseInfo.found_residual_precision = std::max(relativePoseInfo.found_residual_precision, 1.0);
     {
-        // initialize poses
-        const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
-        const Pose3& initPoseJ = relativePoseInfo.relativePose;
+        int numberOfPairs = 12;
+        if(step % numberOfPairs == 0 && step > 0)
+        {
 
-        _sfmData.setPose(viewI, CameraPose(initPoseI));
-        _sfmData.setPose(viewJ, CameraPose(initPoseJ));
+            _nextRow--;
+            _cameraNrOnRow = 0;
+            ALICEVISION_LOG_INFO("_nextRow: " << _nextRow << "step: " << step);
+        }
+
+        // Init poses
+
+        float rotAngle = 45.0;
+        float camerasPairsPerRow = 4;
+
+        float radie = 13.0;
+        float piDeg = 0.0;
+        float piNextDeg = rotAngle;
+
+        if(step > 0)
+        {
+            piDeg = rotAngle * (step * 2);
+            piNextDeg = rotAngle * (step * 2) + rotAngle;
+        }
+
+        // convert to radians
+        float pi = piDeg * M_PI / 180.0;
+
+        float piNext = piNextDeg * M_PI / 180.0;
+
+        Mat3 orientation = Mat3::Identity();
+
+        float z = 0;
+        float x = 0;
+        float y = 0;
+
+        float scaleFact = 4.0;
+
+        // each cricle starts with same orientation and location, then we rotate each camera by the step
+        if(step >= (camerasPairsPerRow * 0) && step < camerasPairsPerRow)
+        {
+            x = 0.090393380613003199 * scaleFact;
+            y = -0.083690029676692909 * scaleFact;
+            z = -0.20376362926175437 * scaleFact;
+
+            orientation(0) = 0.99708930283566743;
+            orientation(1) = 0.023256984098037666;
+            orientation(2) = -0.072608779505968543;
+            orientation(3) = -0.020842631770513622;
+            orientation(4) = 0.99921010921383002;
+            orientation(5) = 0.033834041227213271;
+            orientation(6) = 0.073338304258835377;
+            orientation(7) = -0.032222202524805996;
+            orientation(8) = 0.99678644793801696;
+        }
+        else if(step >= (camerasPairsPerRow * 1) && step < camerasPairsPerRow * 2)
+        {
+            x = 0.089551664543092407 * scaleFact;
+            y = 0.13148854664105514 * scaleFact;
+            z = -0.19591234173938007 * scaleFact;
+
+            orientation(0) = 0.99731893324575949;
+            orientation(1) = 0.012173358902413375;
+            orientation(2) = -0.072157845883683;
+            orientation(3) = -0.02033102342516007;
+            orientation(4) = 0.99333893389232997;
+            orientation(5) = -0.11342139084024189;
+            orientation(6) = 0.070296478404155552;
+            orientation(7) = 0.11458434337501064;
+            orientation(8) = 0.99092322274598632;
+        }
+        else if(step >= (camerasPairsPerRow * 2) && step < camerasPairsPerRow * 3)
+        {
+            x = 0.085281499970466842 * scaleFact;
+            y = 0.29308923993224867 * scaleFact;
+            z = -0.16236154040642295 * scaleFact;
+
+            orientation(0) = 0.99745448197014219;
+            orientation(1) = -0.011672211798191424;
+            orientation(2) = -0.070344266784247503;
+            orientation(3) = -0.0042329950644463656;
+            orientation(4) = 0.97507913839751104;
+            orientation(5) = -0.22181694167658131;
+            orientation(6) = 0.071180321370864844;
+            orientation(7) = 0.22155006958632548;
+            orientation(8) = 0.9725476484552491;
+        }
+        else if(step >= (camerasPairsPerRow * 3) && step < camerasPairsPerRow * 4)
+        {
+            x = 0.08427594045190509 * scaleFact;
+            y = 0.45886945123999839 * scaleFact;
+            z = -0.11701720385241045 * scaleFact;
+
+            orientation(0) = 0.99686310245301424;
+            orientation(1) = -0.035849051063014087;
+            orientation(2) = -0.070560615825208117;
+            orientation(3) = 0.011014680539000251;
+            orientation(4) = 0.94569828579481852;
+            orientation(5) = -0.32485909108006406;
+            orientation(6) = 0.078374943574939626;
+            orientation(7) = 0.32306283875218922;
+            orientation(8) = 0.94312659300700552;
+        }
+        else if(step >= (camerasPairsPerRow * 4) && step < camerasPairsPerRow * 5)
+        {
+            x = 0.080220076906912907 * scaleFact;
+            y = 0.60811004460198992 * scaleFact;
+            z = -0.057832001437625749 * scaleFact;
+
+            orientation(0) = 0.99739856065972332;
+            orientation(1) = -0.027130732072528467;
+            orientation(2) = -0.066783490258602529;
+            orientation(3) = -0.0037225115949061065;
+            orientation(4) = 0.90584470158804853;
+            orientation(5) = -0.42359357822361399;
+            orientation(6) = 0.071987874682740649;
+            orientation(7) = 0.42274022754177043;
+            orientation(8) = 0.90338720708043796;
+        }
+        else if(step >= (camerasPairsPerRow * 5) && step < camerasPairsPerRow * 6)
+        {
+            x = 0.073811265635822298 * scaleFact;
+            y = 0.75383436078619825 * scaleFact;
+            z = 0.023085024628513619 * scaleFact;
+
+            orientation(0) = 0.99724323982904828;
+            orientation(1) = -0.03460705282651675;
+            orientation(2) = -0.065637432231356943;
+            orientation(3) = -0.0050412128928479238;
+            orientation(4) = 0.85093630515674834;
+            orientation(5) = -0.52524469605960822;
+            orientation(6) = 0.074030445006309939;
+            orientation(7) = 0.52412761467112556;
+            orientation(8) = 0.84841601632178298;
+        }
+        else if(step >= (camerasPairsPerRow * 6) && step < camerasPairsPerRow * 7)
+        {
+            x = 0.074041500770919866 * scaleFact;
+            y = 0.88535621204007642 * scaleFact;
+            z = 0.12566776322674802 * scaleFact;
+
+            orientation(0) = 0.99769444692316656;
+            orientation(1) = -0.02542036666644289;
+            orientation(2) = -0.062925317140402323;
+            orientation(3) = -0.019075976698329663;
+            orientation(4) = 0.78477652148622168;
+            orientation(5) = -0.61948520437294585;
+            orientation(6) = 0.065129852538458863;
+            orientation(7) = 0.61925731023745645;
+            orientation(8) = 0.78248225924029047;
+        }
+        else if(step >= (camerasPairsPerRow * 7) && step < camerasPairsPerRow * 8)
+        {
+            x = 0.062433635263669782 * scaleFact;
+            y = 1.0229025050883769 * scaleFact;
+            z = 0.2510996227748945 * scaleFact;
+
+            orientation(0) = 0.99709709571869509;
+            orientation(1) = -0.051379964298353883;
+            orientation(2) = -0.05619146712841265;
+            orientation(3) = -0.0037051582995377801;
+            orientation(4) = 0.70438033109821896;
+            orientation(5) = -0.70981308875220017;
+            orientation(6) = 0.076050335379398329;
+            orientation(7) = 0.70796076757872906;
+            orientation(8) = 0.70214521151825693;
+        }
+        else if(step >= (camerasPairsPerRow * 8) && step < camerasPairsPerRow * 9)
+        {
+            x = 0.059872519806881477 * scaleFact;
+            y = 1.1369188592736048 * scaleFact;
+            z = 0.38137105824323791 * scaleFact;
+
+            orientation(0) = 0.99830404341519086;
+            orientation(1) = -0.016888050371686857;
+            orientation(2) = -0.055712033309907309;
+            orientation(3) = -0.033210412380212051;
+            orientation(4) = 0.62078539129659216;
+            orientation(5) = -0.78327681343333111;
+            orientation(6) = 0.047813234678456044;
+            orientation(7) = 0.78379862956462254;
+            orientation(8) = 0.61917170710732783;
+        }
+        else if(step >= (camerasPairsPerRow * 9) && step < camerasPairsPerRow * 10)
+        {
+            x = 0.049313709115187933 * scaleFact;
+            y = 1.2417547722175599 * scaleFact;
+            z = 0.5420224517349127 * scaleFact;
+
+            orientation(0) = 0.99881480533226252;
+            orientation(1) = 0.0082005966493851126;
+            orientation(2) = -0.047976399027734623;
+            orientation(3) = -0.045444275312906311;
+            orientation(4) = 0.51011466215814572;
+            orientation(5) = -0.85890502926258694;
+            orientation(6) = 0.017429930876486449;
+            orientation(7) = 0.86006731228775035;
+            orientation(8) = 0.50988274715248605;
+        }
+        else if(step >= (camerasPairsPerRow * 10) && step < camerasPairsPerRow * 11)
+        {
+            x = 0.040468325098249387 * scaleFact;
+            y = 1.3239134409211395 * scaleFact;
+            z = 0.69784507125496864 * scaleFact;
+
+            orientation(0) = 0.99700465735087862;
+            orientation(1) = -0.065701134529016464;
+            orientation(2) = -0.040805320023948759;
+            orientation(3) = -0.010587099626341891;
+            orientation(4) = 0.40669568447263027;
+            orientation(5) = -0.91350234457982682;
+            orientation(6) = 0.076613487991075729;
+            orientation(7) = 0.91119810203541285;
+            orientation(8) = 0.40478190708689349;
+        }
+        else if(step >= (camerasPairsPerRow * 11) && step < camerasPairsPerRow * 12)
+        {
+            x = 0.029729822778740367 * scaleFact;
+            y = 1.3830140128881652 * scaleFact;
+            z = 0.86877009639839897 * scaleFact;
+
+            orientation(0) = 0.99841900317406185;
+            orientation(1) = -0.044642792701870992;
+            orientation(2) = -0.03415428466079453;
+            orientation(3) = -0.019781661951469354;
+            orientation(4) = 0.28968684386060956;
+            orientation(5) = -0.95691703838134079;
+            orientation(6) = 0.052613495905048928;
+            orientation(7) = 0.95607978409432781;
+            orientation(8) = 0.28834574124615198;
+        }
+        else if(step >= (camerasPairsPerRow * 12) && step < camerasPairsPerRow * 13)
+        {
+            x = 0.014975953844498277 * scaleFact;
+            y = 1.4225791597093924 * scaleFact;
+            z = 1.1155732560267049 * scaleFact;
+
+            orientation(0) = 0.99768344119109464;
+            orientation(1) = -0.063447054228506689;
+            orientation(2) = -0.024540221735359968;
+            orientation(3) = -0.016577838358999879;
+            orientation(4) = 0.12310616712633637;
+            orientation(5) = -0.99225503117434755;
+            orientation(6) = 0.065976711409698005;
+            orientation(7) = 0.99036323787042269;
+            orientation(8) = 0.12176916944109439;
+        }
+
+        Vec3 location = Vec3(x, y, z);
+
+        // putting together orientation and location as rotation and center members in a Pose3
+        const Pose3& initPoseI = Pose3(orientation, location);
+
+        const Pose3& initPoseJ = Pose3(orientation, location);
+
+        const Pose3& rigRotX = Pose3(RotationAroundY(M_PI_2), Vec3(1, 0, 0));
+        const Pose3& rigTranslateX = Pose3(Mat3::Identity(), Vec3(scaleFact, 0, 0));
+
+        // the rig is rotating CCW
+        Mat3 rotOrbit1 = RotationAroundY(-pi);
+        Mat3 rotNextOrbit1 = RotationAroundY(-piNext);
+        // calculate the global rotation for first camera
+        const Pose3& initPoseRot = Pose3(rotOrbit1, Vec3(0, 1, 0));
+        // calculate the global rotation for secondc camera
+        const Pose3& initPoseRotNext = Pose3(rotNextOrbit1, Vec3(0, 1, 0));
+
+		// initialize poses
+        // const Pose3& initPoseI = Pose3(Mat3::Identity(), Vec3::Zero());
+        // const Pose3& initPoseJ = relativePoseInfo.relativePose;
+
+        //_sfmData.setPose(viewI, CameraPose(initPoseI));
+        //_sfmData.setPose(viewJ, CameraPose(initPoseJ));
+
+        // initialize poses
+        _sfmData.setPose(*viewI, CameraPose(initPoseI * rigRotX * rigTranslateX * initPoseRot));
+        _sfmData.setPose(*viewJ, CameraPose(initPoseJ * rigRotX * rigTranslateX * initPoseRotNext));
+        
 
         // triangulate
         const std::set<IndexT> prevImageIndex = {static_cast<IndexT>(I)};
@@ -1136,7 +1436,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
         triangulate_2Views(_sfmData, prevImageIndex, newImageIndex);
 
         // refine only structure & rotations & translations (keep intrinsic constant)
-        {
+        /*{
             std::set<IndexT> newReconstructedViews = {static_cast<IndexT>(I), static_cast<IndexT>(J)};
             const bool isInitialPair = true;
             const bool success = bundleAdjustment(newReconstructedViews, isInitialPair);
@@ -1153,7 +1453,7 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
                 // this initial pair is not usable
                 return false;
             }
-        }
+        }*/
 
         // save outlier residual information
         Histogram<double> histoResiduals;
@@ -1167,8 +1467,8 @@ bool ReconstructionEngine_sequentialSfM::makeInitialPair3D(const Pair& currentPa
             os << std::endl
                << "<b>Robust Essential matrix:</b>"
                << "<br>"
-               << "-> View I:<br>id: " << I << "<br>image path: " << viewI.getImagePath() << "<br>"
-               << "-> View J:<br>id: " << J << "<br>image path: " << viewJ.getImagePath() << "<br><br>"
+               << "-> View I:<br>id: " << I << "<br>image path: " << viewI->getImagePath() << "<br>"
+               << "-> View J:<br>id: " << J << "<br>image path: " << viewJ->getImagePath() << "<br><br>"
                << "- Threshold: " << relativePoseInfo.found_residual_precision << "<br>"
                << "- Resection status: OK<br>"
                << "- # points used for robust Essential matrix estimation: " << xI.cols() << "<br>"
@@ -1236,9 +1536,6 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
         return false;
     }
 
-    if(filterViewId != UndefinedIndexT)
-        ALICEVISION_LOG_INFO("Selection of an initial pair with one given view id: " << filterViewId << ".");
-
     /// ImagePairScore contains <imagePairScore*scoring_angle, imagePairScore, scoring_angle, numberOfInliers,
     /// imagePair>
     typedef std::tuple<double, double, double, std::size_t, Pair> ImagePairScore;
@@ -1248,8 +1545,8 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
     // Compute the relative pose & the 'baseline score'
     boost::progress_display my_progress_bar(_pairwiseMatches->size(), std::cout,
                                             "Automatic selection of an initial pair:\n");
-
-#pragma omp parallel for schedule(dynamic)
+    ALICEVISION_LOG_INFO("_pairwiseMatches->size(): " << _pairwiseMatches->size());
+    //#pragma omp parallel for schedule(dynamic)
     for(int i = 0; i < _pairwiseMatches->size(); ++i)
     {
         matching::PairwiseMatches::const_iterator iter = _pairwiseMatches->begin();
@@ -1263,15 +1560,17 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
         const IndexT I = std::min(current_pair.first, current_pair.second);
         const IndexT J = std::max(current_pair.first, current_pair.second);
 
-        if(filterViewId != UndefinedIndexT && filterViewId != I && filterViewId != J)
-            continue;
-
         if(!valid_views.count(I) || !valid_views.count(J))
             continue;
 
         const View* viewI = _sfmData.getViews().at(I).get();
+
         const Intrinsics::const_iterator iterIntrinsic_I = _sfmData.getIntrinsics().find(viewI->getIntrinsicId());
         const View* viewJ = _sfmData.getViews().at(J).get();
+        ALICEVISION_LOG_INFO("Index I: " << viewI->getImagePath() << " ,Index J: " << viewJ->getImagePath()
+                                         << " I: " << I << "i: " << i);
+        //<< " Pose:" << _sfmData.getPoses().at(0)
+
         const Intrinsics::const_iterator iterIntrinsic_J = _sfmData.getIntrinsics().find(viewJ->getIntrinsicId());
 
         const Pinhole* camI = dynamic_cast<const Pinhole*>(iterIntrinsic_I->second.get());
@@ -1286,8 +1585,7 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
 
         // Copy points correspondences to arrays for relative pose estimation
         const size_t n = map_tracksCommon.size();
-        ALICEVISION_LOG_DEBUG("Automatic initial pair choice test - I: " << I << ", J: " << J
-                                                                         << ", common tracks: " << n);
+        ALICEVISION_LOG_INFO("AutomaticInitialPairChoice, test I: " << I << ", J: " << J << ", nbCommonTracks: " << n);
         Mat xI(2, n), xJ(2, n);
         size_t cptIndex = 0;
         std::vector<std::size_t> commonTracksIds(n);
@@ -1316,66 +1614,65 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
             robustRelativePose(camI->K(), camJ->K(), xI, xJ, relativePose_info, std::make_pair(camI->w(), camI->h()),
                                std::make_pair(camJ->w(), camJ->h()), 1024);
 
-        if(relativePoseSuccess && relativePose_info.vec_inliers.size() > iMin_inliers_count)
+        // if(relativePoseSuccess && relativePose_info.vec_inliers.size() > iMin_inliers_count)
+
+        // Triangulate inliers & compute angle between bearing vectors
+        std::vector<float> vec_angles(relativePose_info.vec_inliers.size());
+        std::vector<std::size_t> validCommonTracksIds(relativePose_info.vec_inliers.size());
+        const Pose3 pose_I = Pose3(Mat3::Identity(), Vec3::Zero());
+        const Pose3 pose_J = relativePose_info.relativePose;
+        const Mat34 PI = camI->get_projective_equivalent(pose_I);
+        const Mat34 PJ = camJ->get_projective_equivalent(pose_J);
+        std::size_t index = 0;
+        for(const size_t inlier_idx : relativePose_info.vec_inliers)
         {
-            // Triangulate inliers & compute angle between bearing vectors
-            std::vector<float> vec_angles(relativePose_info.vec_inliers.size());
-            std::vector<std::size_t> validCommonTracksIds(relativePose_info.vec_inliers.size());
-            const Pose3 pose_I = Pose3(Mat3::Identity(), Vec3::Zero());
-            const Pose3 pose_J = relativePose_info.relativePose;
-            const Mat34 PI = camI->get_projective_equivalent(pose_I);
-            const Mat34 PJ = camJ->get_projective_equivalent(pose_J);
-            std::size_t i = 0;
-            for(const size_t inlier_idx : relativePose_info.vec_inliers)
-            {
-                Vec3 X;
-                TriangulateDLT(PI, xI.col(inlier_idx), PJ, xJ.col(inlier_idx), &X);
-                IndexT trackId = commonTracksIds[inlier_idx];
-                auto iter = map_tracksCommon[trackId].featPerView.begin();
-                const Vec2 featI = _featuresPerView->getFeatures(I, map_tracksCommon[trackId].descType)[iter->second]
-                                       .coords()
-                                       .cast<double>();
-                const Vec2 featJ =
-                    _featuresPerView->getFeatures(J, map_tracksCommon[trackId].descType)[(++iter)->second]
-                        .coords()
-                        .cast<double>();
-                vec_angles[i] = AngleBetweenRays(pose_I, camI, pose_J, camJ, featI, featJ);
-                validCommonTracksIds[i] = trackId;
-                ++i;
-            }
-            // Compute the median triangulation angle
-            const unsigned median_index = vec_angles.size() / 2;
-            std::nth_element(vec_angles.begin(), vec_angles.begin() + median_index, vec_angles.end());
-            const float scoring_angle = vec_angles[median_index];
-            const double imagePairScore = std::min(computeCandidateImageScore(I, validCommonTracksIds),
-                                                   computeCandidateImageScore(J, validCommonTracksIds));
-            double score = scoring_angle * imagePairScore;
-
-            // If the image pair is outside the reasonable angle range: [fRequired_min_angle;fLimit_max_angle]
-            // we put it in negative to ensure that image pairs with reasonable angle will win,
-            // but keep the score ordering.
-            if(scoring_angle < fRequired_min_angle || scoring_angle > fLimit_max_angle)
-                score = -1.0 / score;
-
-#pragma omp critical
-            bestImagePairs.emplace_back(score, imagePairScore, scoring_angle, relativePose_info.vec_inliers.size(),
-                                        current_pair);
+            Vec3 X;
+            TriangulateDLT(PI, xI.col(inlier_idx), PJ, xJ.col(inlier_idx), &X);
+            IndexT trackId = commonTracksIds[inlier_idx];
+            auto iter = map_tracksCommon[trackId].featPerView.begin();
+            const Vec2 featI = _featuresPerView->getFeatures(I, map_tracksCommon[trackId].descType)[iter->second]
+                                   .coords()
+                                   .cast<double>();
+            const Vec2 featJ = _featuresPerView->getFeatures(J, map_tracksCommon[trackId].descType)[(++iter)->second]
+                                   .coords()
+                                   .cast<double>();
+            vec_angles[index] = AngleBetweenRays(pose_I, camI, pose_J, camJ, featI, featJ);
+            validCommonTracksIds[index] = trackId;
+            ++index;
         }
+        // Compute the median triangulation angle
+        const unsigned median_index = vec_angles.size() / 2;
+        std::nth_element(vec_angles.begin(), vec_angles.begin() + median_index, vec_angles.end());
+        const float scoring_angle = vec_angles[median_index];
+        const double imagePairScore = std::min(computeCandidateImageScore(I, validCommonTracksIds),
+                                               computeCandidateImageScore(J, validCommonTracksIds));
+        double score = scoring_angle * imagePairScore;
+
+        // If the image pair is outside the reasonable angle range: [fRequired_min_angle;fLimit_max_angle]
+        // we put it in negative to ensure that image pairs with reasonable angle will win,
+        // but keep the score ordering.
+        if(scoring_angle < fRequired_min_angle || scoring_angle > fLimit_max_angle)
+            score = -1.0 / score;
+
+        //#pragma omp critical
+        ALICEVISION_LOG_INFO("add image pair");
+        bestImagePairs.emplace_back(score, imagePairScore, scoring_angle, relativePose_info.vec_inliers.size(),
+                                    current_pair);
     }
     // We print the N best scores and return the best one.
     const std::size_t nBestScores = std::min(std::size_t(50), bestImagePairs.size());
     std::sort(bestImagePairs.begin(), bestImagePairs.end(), std::greater<ImagePairScore>());
     ALICEVISION_LOG_DEBUG(bestImagePairs.size()
                           << " possible image pairs. " << nBestScores << " best possibles image pairs are:");
-    ALICEVISION_LOG_DEBUG(boost::format("%=25s | %=15s | %=15s | %=15s | %=15s") % "Pair" % "Score" % "ImagePairScore" %
+    ALICEVISION_LOG_DEBUG(boost::format("%=15s | %=15s | %=15s | %=15s | %=15s") % "Pair" % "Score" % "ImagePairScore" %
                           "Angle" % "NbMatches");
-    ALICEVISION_LOG_DEBUG(std::string(25 + 15 * 4 + 3 * 4, '-'));
+    ALICEVISION_LOG_DEBUG(std::string(15 * 5 + 3 * 3, '-'));
     for(std::size_t i = 0; i < nBestScores; ++i)
     {
         const ImagePairScore& s = bestImagePairs[i];
         const Pair& currPair = std::get<4>(s);
         const std::string pairIdx = std::to_string(currPair.first) + ", " + std::to_string(currPair.second);
-        ALICEVISION_LOG_DEBUG(boost::format("%=25s | %+15.1f | %+15.1f | %+15.1f | %+15f") % pairIdx % std::get<0>(s) %
+        ALICEVISION_LOG_DEBUG(boost::format("%=15s | %+15.1f | %+15.1f | %+15.1f | %+15f") % pairIdx % std::get<0>(s) %
                               std::get<1>(s) % std::get<2>(s) % std::get<3>(s));
     }
     if(bestImagePairs.empty())
@@ -1387,6 +1684,8 @@ bool ReconstructionEngine_sequentialSfM::getBestInitialImagePairs(std::vector<Pa
     for(const auto& imagePair : bestImagePairs)
         out_bestImagePairs.push_back(std::get<4>(imagePair));
 
+    ALICEVISION_LOG_INFO("out_bestImagePairs: " << out_bestImagePairs.size()
+                                                << " bestImagePairs: " << bestImagePairs.size());
     return true;
 }
 

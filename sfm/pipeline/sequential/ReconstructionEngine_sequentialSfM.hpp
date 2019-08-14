@@ -38,6 +38,7 @@ public:
   struct Params
   {
     Pair userInitialImagePair = { UndefinedIndexT, UndefinedIndexT };
+    Pair _userInitialImagePair ;
     int minInputTrackLength = 2;
     int minTrackLength = 2;
     int minPointsPerPose = 30;
