@@ -34,15 +34,21 @@ void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& pa
         viewTree.put("subPoseId", view.getSubPoseId());
     }
 
-    if(view.getIntrinsicId() != UndefinedIndexT)
-        viewTree.put("intrinsicId", view.getIntrinsicId());
+  if(view.getFrameId() != UndefinedIndexT)
+    viewTree.put("frameId", view.getFrameId());
 
-    if(view.getResectionId() != UndefinedIndexT)
-        viewTree.put("resectionId", view.getResectionId());
+  if(view.getIntrinsicId() != UndefinedIndexT)
+    viewTree.put("intrinsicId", view.getIntrinsicId());
 
-    viewTree.put("path", view.getImagePath());
-    viewTree.put("width", view.getWidth());
-    viewTree.put("height", view.getHeight());
+   if(view.getResectionId() != UndefinedIndexT)
+     viewTree.put("resectionId", view.getResectionId());
+
+  if(view.isPoseIndependant() == false)
+    viewTree.put("isPoseIndependant", view.isPoseIndependant());
+
+  viewTree.put("path", view.getImagePath());
+  viewTree.put("width", view.getWidth());
+  viewTree.put("height", view.getHeight());
 
     // metadata
     {
@@ -59,17 +65,28 @@ void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& pa
 
 void loadView(sfmData::View& view, bpt::ptree& viewTree)
 {
+    ALICEVISION_LOG_INFO("UndefinedIndexT: " << UndefinedIndexT);
     view.setViewId(viewTree.get<IndexT>("viewId", UndefinedIndexT));
     view.setPoseId(viewTree.get<IndexT>("poseId", UndefinedIndexT));
+    ALICEVISION_LOG_INFO("poseid: " << view.getPoseId());
+
 
     if(viewTree.count("rigId"))
     {
-        view.setRigAndSubPoseId(viewTree.get<IndexT>("rigId"), viewTree.get<IndexT>("subPoseId"));
+        view.setRigAndSubPoseId(
+		viewTree.get<IndexT>("rigId"), 
+	    viewTree.get<IndexT>("subPoseId"));
     }
+
+	view.setFrameId(viewTree.get<IndexT>("frameId", UndefinedIndexT));
+	view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
+	view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
+	view.setIndependantPose(viewTree.get<bool>("isPoseIndependant", true));
 
     view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
     view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
 
+    ALICEVISION_LOG_INFO("path:" << viewTree.get<std::string>("path"));
     view.setImagePath(viewTree.get<std::string>("path"));
     view.setWidth(viewTree.get<std::size_t>("width", 0));
     view.setHeight(viewTree.get<std::size_t>("height", 0));
@@ -87,12 +104,14 @@ void saveIntrinsic(const std::string& name, IndexT intrinsicId, const std::share
 
     camera::EINTRINSIC intrinsicType = intrinsic->getType();
 
-    intrinsicTree.put("intrinsicId", intrinsicId);
-    intrinsicTree.put("width", intrinsic->w());
-    intrinsicTree.put("height", intrinsic->h());
-    intrinsicTree.put("type", camera::EINTRINSIC_enumToString(intrinsicType));
-    intrinsicTree.put("serialNumber", intrinsic->serialNumber());
-    intrinsicTree.put("pxInitialFocalLength", intrinsic->initialFocalLengthPix());
+	intrinsicTree.put("intrinsicId", intrinsicId);
+	intrinsicTree.put("width", intrinsic->w());
+	intrinsicTree.put("height", intrinsic->h());
+	intrinsicTree.put("serialNumber", intrinsic->serialNumber());
+	intrinsicTree.put("type", camera::EINTRINSIC_enumToString(intrinsicType));
+	intrinsicTree.put("initializationMode", camera::EIntrinsicInitMode_enumToString(intrinsic->getInitializationMode()));
+	intrinsicTree.put("pxInitialFocalLength", intrinsic->initialFocalLengthPix());
+
 
     if(camera::isPinhole(intrinsicType))
     {
@@ -113,48 +132,49 @@ void saveIntrinsic(const std::string& name, IndexT intrinsicId, const std::share
         intrinsicTree.add_child("distortionParams", distParamsTree);
     }
 
-    intrinsicTree.put("locked", intrinsic->isLocked());
+	intrinsicTree.put("locked", static_cast<int>(intrinsic->isLocked())); // convert bool to integer to avoid using "true/false" in exported file instead of "1/0".
 
     parentTree.push_back(std::make_pair(name, intrinsicTree));
 }
 
 void loadIntrinsic(IndexT& intrinsicId, std::shared_ptr<camera::IntrinsicBase>& intrinsic, bpt::ptree& intrinsicTree)
 {
-    intrinsicId = intrinsicTree.get<IndexT>("intrinsicId");
-    const unsigned int width = intrinsicTree.get<unsigned int>("width");
-    const unsigned int height = intrinsicTree.get<unsigned int>("height");
-    const camera::EINTRINSIC intrinsicType = camera::EINTRINSIC_stringToEnum(intrinsicTree.get<std::string>("type"));
-    const double pxFocalLength = intrinsicTree.get<double>("pxFocalLength");
+  intrinsicId = intrinsicTree.get<IndexT>("intrinsicId");
+  const unsigned int width = intrinsicTree.get<unsigned int>("width");
+  const unsigned int height = intrinsicTree.get<unsigned int>("height");
+  const camera::EINTRINSIC intrinsicType = camera::EINTRINSIC_stringToEnum(intrinsicTree.get<std::string>("type"));
+  const camera::EIntrinsicInitMode initializationMode = camera::EIntrinsicInitMode_stringToEnum(intrinsicTree.get<std::string>("initializationMode", camera::EIntrinsicInitMode_enumToString(camera::EIntrinsicInitMode::CALIBRATED)));
+  const double pxFocalLength = intrinsicTree.get<double>("pxFocalLength");
 
-    // principal point
-    Vec2 principalPoint;
-    loadMatrix("principalPoint", principalPoint, intrinsicTree);
+  // principal point
+  Vec2 principalPoint;
+  loadMatrix("principalPoint", principalPoint, intrinsicTree);
 
-    // check if the camera is a Pinhole model
-    if(!camera::isPinhole(intrinsicType))
-        throw std::out_of_range("Only Pinhole camera model supported");
+  // check if the camera is a Pinhole model
+  if(!camera::isPinhole(intrinsicType))
+    throw std::out_of_range("Only Pinhole camera model supported");
 
-    // pinhole parameters
-    std::shared_ptr<camera::Pinhole> pinholeIntrinsic = camera::createPinholeIntrinsic(
-        intrinsicType, width, height, pxFocalLength, principalPoint(0), principalPoint(1));
-    pinholeIntrinsic->setInitialFocalLengthPix(intrinsicTree.get<double>("pxInitialFocalLength"));
-    pinholeIntrinsic->setSerialNumber(intrinsicTree.get<std::string>("serialNumber"));
+  // pinhole parameters
+  std::shared_ptr<camera::Pinhole> pinholeIntrinsic = camera::createPinholeIntrinsic(intrinsicType, width, height, pxFocalLength, principalPoint(0), principalPoint(1));
+  pinholeIntrinsic->setInitialFocalLengthPix(intrinsicTree.get<double>("pxInitialFocalLength"));
+  pinholeIntrinsic->setSerialNumber(intrinsicTree.get<std::string>("serialNumber"));
+  pinholeIntrinsic->setInitializationMode(initializationMode);
 
-    std::vector<double> distortionParams;
-    for(bpt::ptree::value_type& paramNode : intrinsicTree.get_child("distortionParams"))
-        distortionParams.emplace_back(paramNode.second.get_value<double>());
+  std::vector<double> distortionParams;
+  for(bpt::ptree::value_type &paramNode : intrinsicTree.get_child("distortionParams"))
+    distortionParams.emplace_back(paramNode.second.get_value<double>());
 
-    // Ensure that we have the right number of params
-    distortionParams.resize(pinholeIntrinsic->getDistortionParams().size(), 0.0);
+  // ensure that we have the right number of params
+  distortionParams.resize(pinholeIntrinsic->getDistortionParams().size(), 0.0);
 
-    pinholeIntrinsic->setDistortionParams(distortionParams);
-    intrinsic = std::static_pointer_cast<camera::IntrinsicBase>(pinholeIntrinsic);
+  pinholeIntrinsic->setDistortionParams(distortionParams);
+  intrinsic = std::static_pointer_cast<camera::IntrinsicBase>(pinholeIntrinsic);
 
-    // intrinsic lock
-    if(intrinsicTree.get<bool>("locked", false))
-        intrinsic->lock();
-    else
-        intrinsic->unlock();
+  // intrinsic lock
+  if(intrinsicTree.get<bool>("locked", false))
+    intrinsic->lock();
+  else
+    intrinsic->unlock();
 }
 
 void saveRig(const std::string& name, IndexT rigId, const sfmData::Rig& rig, bpt::ptree& parentTree)
@@ -254,7 +274,8 @@ void loadLandmark(IndexT& landmarkId, sfmData::Landmark& landmark, bpt::ptree& l
 
 bool saveJSON(const sfmData::SfMData& sfmData, const std::string& filename, ESfMData partFlag)
 {
-    const Vec3 version = {1, 0, 0};
+    const Vec3 version = {1, 2, 3};
+    ALICEVISION_LOG_INFO("saving file json: " << filename);
 
     // save flags
     const bool saveViews = (partFlag & VIEWS) == VIEWS;
@@ -304,7 +325,11 @@ bool saveJSON(const sfmData::SfMData& sfmData, const std::string& filename, ESfM
         bpt::ptree viewsTree;
 
         for(const auto& viewPair : sfmData.getViews())
+        {
+            ALICEVISION_LOG_INFO("viewPair.second: " << viewPair.second.get()->getImagePath());
             saveView("", *(viewPair.second), viewsTree);
+		}
+            
 
         fileTree.add_child("views", viewsTree);
     }
@@ -385,6 +410,8 @@ bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData p
 {
     Vec3 version;
 
+    ALICEVISION_LOG_INFO("load json file: " << filename);
+
     // load flags
     const bool loadViews = (partFlag & VIEWS) == VIEWS;
     const bool loadIntrinsics = (partFlag & INTRINSICS) == INTRINSICS;
@@ -433,6 +460,7 @@ bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData p
 
         if(incompleteViews)
         {
+            ALICEVISION_LOG_INFO("incompleteViews: ");
             // store incomplete views in a vector
             std::vector<sfmData::View> incompleteViews(fileTree.get_child("views").size());
 
@@ -465,15 +493,31 @@ bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData p
                     v.setWidth(intrinsics->w());
                     v.setHeight(intrinsics->h());
                 }
-                updateIncompleteView(incompleteViews.at(i), 0);
+                updateIncompleteView(incompleteViews.at(i), i);
             }
 
+            viewIndex = 0;
             // copy complete views in the SfMData views map
+            ALICEVISION_LOG_INFO("views empty: " << views.empty());
             for(const sfmData::View& view : incompleteViews)
-                views.emplace(view.getViewId(), std::make_shared<sfmData::View>(view));
+            {
+                ALICEVISION_LOG_INFO("views : " << view.getImagePath() << " id: " << view.getViewId())
+                    << " viewIndex: " << viewIndex;
+                views.emplace(viewIndex, std::make_shared<sfmData::View>(view));
+                ++viewIndex;
+            }
+
+            auto viewPairItBegin = sfmData.getViews().begin();
+
+            sfmData::View& view = *(std::next(viewPairItBegin, 0)->second);
+
+
+            ALICEVISION_LOG_INFO("Image path second: " << views.at(0)->getImagePath()
+                                                       << "id: " << views.begin()->first);
         }
         else
         {
+            ALICEVISION_LOG_INFO("store directly in the SfMData: ");
             // store directly in the SfMData views map
             for(bpt::ptree::value_type& viewNode : fileTree.get_child("views"))
             {
