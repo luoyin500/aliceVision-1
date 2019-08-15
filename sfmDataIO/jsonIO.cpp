@@ -13,26 +13,24 @@
 #include <memory>
 #include <cassert>
 
-namespace aliceVision
-{
-namespace sfmDataIO
-{
+namespace aliceVision {
+namespace sfmDataIO {
 
 void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& parentTree)
 {
-    bpt::ptree viewTree;
+  bpt::ptree viewTree;
 
-    if(view.getViewId() != UndefinedIndexT)
-        viewTree.put("viewId", view.getViewId());
+  if(view.getViewId() != UndefinedIndexT)
+    viewTree.put("viewId", view.getViewId());
 
-    if(view.getPoseId() != UndefinedIndexT)
-        viewTree.put("poseId", view.getPoseId());
+  if(view.getPoseId() != UndefinedIndexT)
+    viewTree.put("poseId", view.getPoseId());
 
-    if(view.isPartOfRig())
-    {
-        viewTree.put("rigId", view.getRigId());
-        viewTree.put("subPoseId", view.getSubPoseId());
-    }
+  if(view.isPartOfRig())
+  {
+    viewTree.put("rigId", view.getRigId());
+    viewTree.put("subPoseId", view.getSubPoseId());
+  }
 
   if(view.getFrameId() != UndefinedIndexT)
     viewTree.put("frameId", view.getFrameId());
@@ -40,8 +38,8 @@ void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& pa
   if(view.getIntrinsicId() != UndefinedIndexT)
     viewTree.put("intrinsicId", view.getIntrinsicId());
 
-   if(view.getResectionId() != UndefinedIndexT)
-     viewTree.put("resectionId", view.getResectionId());
+  if(view.getResectionId() != UndefinedIndexT)
+    viewTree.put("resectionId", view.getResectionId());
 
   if(view.isPoseIndependant() == false)
     viewTree.put("isPoseIndependant", view.isPoseIndependant());
@@ -50,91 +48,83 @@ void saveView(const std::string& name, const sfmData::View& view, bpt::ptree& pa
   viewTree.put("width", view.getWidth());
   viewTree.put("height", view.getHeight());
 
-    // metadata
-    {
-        bpt::ptree metadataTree;
+  // metadata
+  {
+    bpt::ptree metadataTree;
 
-        for(const auto& metadataPair : view.getMetadata())
-            metadataTree.put(metadataPair.first, metadataPair.second);
+    for(const auto& metadataPair : view.getMetadata())
+      metadataTree.put(metadataPair.first, metadataPair.second);
 
-        viewTree.add_child("metadata", metadataTree);
-    }
+    viewTree.add_child("metadata", metadataTree);
+  }
 
-    parentTree.push_back(std::make_pair(name, viewTree));
+  parentTree.push_back(std::make_pair(name, viewTree));
 }
 
 void loadView(sfmData::View& view, bpt::ptree& viewTree)
 {
-    ALICEVISION_LOG_INFO("UndefinedIndexT: " << UndefinedIndexT);
-    view.setViewId(viewTree.get<IndexT>("viewId", UndefinedIndexT));
-    view.setPoseId(viewTree.get<IndexT>("poseId", UndefinedIndexT));
-    ALICEVISION_LOG_INFO("poseid: " << view.getPoseId());
+  view.setViewId(viewTree.get<IndexT>("viewId", UndefinedIndexT));
+  view.setPoseId(viewTree.get<IndexT>("poseId", UndefinedIndexT));
 
+  if(viewTree.count("rigId"))
+  {
+    view.setRigAndSubPoseId(
+      viewTree.get<IndexT>("rigId"),
+      viewTree.get<IndexT>("subPoseId"));
+  }
 
-    if(viewTree.count("rigId"))
-    {
-        view.setRigAndSubPoseId(
-		viewTree.get<IndexT>("rigId"), 
-	    viewTree.get<IndexT>("subPoseId"));
-    }
+  view.setFrameId(viewTree.get<IndexT>("frameId", UndefinedIndexT));
+  view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
+  view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
+  view.setIndependantPose(viewTree.get<bool>("isPoseIndependant", true));
 
-	view.setFrameId(viewTree.get<IndexT>("frameId", UndefinedIndexT));
-	view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
-	view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
-	view.setIndependantPose(viewTree.get<bool>("isPoseIndependant", true));
+  view.setImagePath(viewTree.get<std::string>("path"));
+  view.setWidth(viewTree.get<std::size_t>("width", 0));
+  view.setHeight(viewTree.get<std::size_t>("height", 0));
 
-    view.setIntrinsicId(viewTree.get<IndexT>("intrinsicId", UndefinedIndexT));
-    view.setResectionId(viewTree.get<IndexT>("resectionId", UndefinedIndexT));
+  // metadata
+  if(viewTree.count("metadata"))
+    for(bpt::ptree::value_type &metaDataNode : viewTree.get_child("metadata"))
+      view.addMetadata(metaDataNode.first, metaDataNode.second.data());
 
-    ALICEVISION_LOG_INFO("loadView path:" << viewTree.get<std::string>("path"));
-    view.setImagePath(viewTree.get<std::string>("path"));
-    view.setWidth(viewTree.get<std::size_t>("width", 0));
-    view.setHeight(viewTree.get<std::size_t>("height", 0));
-
-    // metadata
-    if(viewTree.count("metadata"))
-        for(bpt::ptree::value_type& metaDataNode : viewTree.get_child("metadata"))
-            view.addMetadata(metaDataNode.first, metaDataNode.second.data());
 }
 
-void saveIntrinsic(const std::string& name, IndexT intrinsicId, const std::shared_ptr<camera::IntrinsicBase>& intrinsic,
-                   bpt::ptree& parentTree)
+void saveIntrinsic(const std::string& name, IndexT intrinsicId, const std::shared_ptr<camera::IntrinsicBase>& intrinsic, bpt::ptree& parentTree)
 {
-    bpt::ptree intrinsicTree;
+  bpt::ptree intrinsicTree;
 
-    camera::EINTRINSIC intrinsicType = intrinsic->getType();
+  camera::EINTRINSIC intrinsicType = intrinsic->getType();
 
-	intrinsicTree.put("intrinsicId", intrinsicId);
-	intrinsicTree.put("width", intrinsic->w());
-	intrinsicTree.put("height", intrinsic->h());
-	intrinsicTree.put("serialNumber", intrinsic->serialNumber());
-	intrinsicTree.put("type", camera::EINTRINSIC_enumToString(intrinsicType));
-	intrinsicTree.put("initializationMode", camera::EIntrinsicInitMode_enumToString(intrinsic->getInitializationMode()));
-	intrinsicTree.put("pxInitialFocalLength", intrinsic->initialFocalLengthPix());
+  intrinsicTree.put("intrinsicId", intrinsicId);
+  intrinsicTree.put("width", intrinsic->w());
+  intrinsicTree.put("height", intrinsic->h());
+  intrinsicTree.put("serialNumber", intrinsic->serialNumber());
+  intrinsicTree.put("type", camera::EINTRINSIC_enumToString(intrinsicType));
+  intrinsicTree.put("initializationMode", camera::EIntrinsicInitMode_enumToString(intrinsic->getInitializationMode()));
+  intrinsicTree.put("pxInitialFocalLength", intrinsic->initialFocalLengthPix());
 
+  if(camera::isPinhole(intrinsicType))
+  {
+    const camera::Pinhole& pinholeIntrinsic = dynamic_cast<camera::Pinhole&>(*intrinsic);
 
-    if(camera::isPinhole(intrinsicType))
+    intrinsicTree.put("pxFocalLength", pinholeIntrinsic.getFocalLengthPix());
+    saveMatrix("principalPoint", pinholeIntrinsic.getPrincipalPoint(), intrinsicTree);
+
+    bpt::ptree distParamsTree;
+
+    for(double param : pinholeIntrinsic.getDistortionParams())
     {
-        const camera::Pinhole& pinholeIntrinsic = dynamic_cast<camera::Pinhole&>(*intrinsic);
-
-        intrinsicTree.put("pxFocalLength", pinholeIntrinsic.getFocalLengthPix());
-        saveMatrix("principalPoint", pinholeIntrinsic.getPrincipalPoint(), intrinsicTree);
-
-        bpt::ptree distParamsTree;
-
-        for(double param : pinholeIntrinsic.getDistortionParams())
-        {
-            bpt::ptree paramTree;
-            paramTree.put("", param);
-            distParamsTree.push_back(std::make_pair("", paramTree));
-        }
-
-        intrinsicTree.add_child("distortionParams", distParamsTree);
+      bpt::ptree paramTree;
+      paramTree.put("", param);
+      distParamsTree.push_back(std::make_pair("", paramTree));
     }
 
-	intrinsicTree.put("locked", static_cast<int>(intrinsic->isLocked())); // convert bool to integer to avoid using "true/false" in exported file instead of "1/0".
+    intrinsicTree.add_child("distortionParams", distParamsTree);
+  }
 
-    parentTree.push_back(std::make_pair(name, intrinsicTree));
+  intrinsicTree.put("locked", static_cast<int>(intrinsic->isLocked())); // convert bool to integer to avoid using "true/false" in exported file instead of "1/0".
+
+  parentTree.push_back(std::make_pair(name, intrinsicTree));
 }
 
 void loadIntrinsic(IndexT& intrinsicId, std::shared_ptr<camera::IntrinsicBase>& intrinsic, bpt::ptree& intrinsicTree)
@@ -179,424 +169,402 @@ void loadIntrinsic(IndexT& intrinsicId, std::shared_ptr<camera::IntrinsicBase>& 
 
 void saveRig(const std::string& name, IndexT rigId, const sfmData::Rig& rig, bpt::ptree& parentTree)
 {
-    bpt::ptree rigTree;
+  bpt::ptree rigTree;
 
-    rigTree.put("rigId", rigId);
+  rigTree.put("rigId", rigId);
 
-    bpt::ptree rigSubPosesTree;
+  bpt::ptree rigSubPosesTree;
 
-    for(const auto& rigSubPose : rig.getSubPoses())
-    {
-        bpt::ptree rigSubPoseTree;
+  for(const auto& rigSubPose : rig.getSubPoses())
+  {
+    bpt::ptree rigSubPoseTree;
 
-        rigSubPoseTree.put("status", sfmData::ERigSubPoseStatus_enumToString(rigSubPose.status));
-        savePose3("pose", rigSubPose.pose, rigSubPoseTree);
+    rigSubPoseTree.put("status", sfmData::ERigSubPoseStatus_enumToString(rigSubPose.status));
+    savePose3("pose", rigSubPose.pose, rigSubPoseTree);
 
-        rigSubPosesTree.push_back(std::make_pair("", rigSubPoseTree));
-    }
+    rigSubPosesTree.push_back(std::make_pair("", rigSubPoseTree));
+  }
 
-    rigTree.add_child("subPoses", rigSubPosesTree);
+  rigTree.add_child("subPoses", rigSubPosesTree);
 
-    parentTree.push_back(std::make_pair(name, rigTree));
+  parentTree.push_back(std::make_pair(name, rigTree));
 }
+
 
 void loadRig(IndexT& rigId, sfmData::Rig& rig, bpt::ptree& rigTree)
 {
-    rigId = rigTree.get<IndexT>("rigId");
-    rig = sfmData::Rig(rigTree.get_child("subPoses").size());
-    int subPoseId = 0;
+  rigId =  rigTree.get<IndexT>("rigId");
+  rig = sfmData::Rig(rigTree.get_child("subPoses").size());
+  int subPoseId = 0;
 
-    for(bpt::ptree::value_type& subPoseNode : rigTree.get_child("subPoses"))
-    {
-        bpt::ptree& subPoseTree = subPoseNode.second;
+  for(bpt::ptree::value_type& subPoseNode : rigTree.get_child("subPoses"))
+  {
+    bpt::ptree& subPoseTree = subPoseNode.second;
 
-        sfmData::RigSubPose subPose;
+    sfmData::RigSubPose subPose;
 
-        subPose.status = sfmData::ERigSubPoseStatus_stringToEnum(subPoseTree.get<std::string>("status"));
-        loadPose3("pose", subPose.pose, subPoseTree);
+    subPose.status = sfmData::ERigSubPoseStatus_stringToEnum(subPoseTree.get<std::string>("status"));
+    loadPose3("pose", subPose.pose, subPoseTree);
 
-        rig.setSubPose(subPoseId++, subPose);
-    }
+    rig.setSubPose(subPoseId++, subPose);
+  }
 }
 
 void saveLandmark(const std::string& name, IndexT landmarkId, const sfmData::Landmark& landmark, bpt::ptree& parentTree)
 {
-    bpt::ptree landmarkTree;
+  bpt::ptree landmarkTree;
 
-    landmarkTree.put("landmarkId", landmarkId);
-    landmarkTree.put("descType", feature::EImageDescriberType_enumToString(landmark.descType));
+  landmarkTree.put("landmarkId", landmarkId);
+  landmarkTree.put("descType", feature::EImageDescriberType_enumToString(landmark.descType));
 
-    saveMatrix("color", landmark.rgb, landmarkTree);
-    saveMatrix("X", landmark.X, landmarkTree);
+  saveMatrix("color", landmark.rgb, landmarkTree);
+  saveMatrix("X", landmark.X, landmarkTree);
 
-    // observations
-    bpt::ptree observationsTree;
-    for(const auto& obsPair : landmark.observations)
-    {
-        bpt::ptree obsTree;
+  // observations
+  bpt::ptree observationsTree;
+  for(const auto& obsPair : landmark.observations)
+  {
+    bpt::ptree obsTree;
 
-        const sfmData::Observation& observation = obsPair.second;
+    const sfmData::Observation& observation = obsPair.second;
 
-        obsTree.put("observationId", obsPair.first);
-        obsTree.put("featureId", observation.id_feat);
+    obsTree.put("observationId", obsPair.first);
+    obsTree.put("featureId", observation.id_feat);
 
-        saveMatrix("x", observation.x, obsTree);
+    saveMatrix("x", observation.x, obsTree);
 
-        observationsTree.push_back(std::make_pair("", obsTree));
-    }
+    observationsTree.push_back(std::make_pair("", obsTree));
+  }
 
-    landmarkTree.add_child("observations", observationsTree);
+  landmarkTree.add_child("observations", observationsTree);
 
-    parentTree.push_back(std::make_pair(name, landmarkTree));
+  parentTree.push_back(std::make_pair(name, landmarkTree));
 }
 
 void loadLandmark(IndexT& landmarkId, sfmData::Landmark& landmark, bpt::ptree& landmarkTree)
 {
-    landmarkId = landmarkTree.get<IndexT>("landmarkId");
-    landmark.descType = feature::EImageDescriberType_stringToEnum(landmarkTree.get<std::string>("descType"));
+  landmarkId = landmarkTree.get<IndexT>("landmarkId");
+  landmark.descType = feature::EImageDescriberType_stringToEnum(landmarkTree.get<std::string>("descType"));
 
-    loadMatrix("color", landmark.rgb, landmarkTree);
-    loadMatrix("X", landmark.X, landmarkTree);
+  loadMatrix("color", landmark.rgb, landmarkTree);
+  loadMatrix("X", landmark.X, landmarkTree);
 
-    // observations
-    for(bpt::ptree::value_type& obsNode : landmarkTree.get_child("observations"))
-    {
-        bpt::ptree& obsTree = obsNode.second;
+  // observations
+  for(bpt::ptree::value_type &obsNode : landmarkTree.get_child("observations"))
+  {
+    bpt::ptree& obsTree = obsNode.second;
 
-        sfmData::Observation observation;
+    sfmData::Observation observation;
 
-        observation.id_feat = obsTree.get<IndexT>("featureId");
-        loadMatrix("x", observation.x, obsTree);
+    observation.id_feat = obsTree.get<IndexT>("featureId");
+    loadMatrix("x", observation.x, obsTree);
 
-        landmark.observations.emplace(obsTree.get<IndexT>("observationId"), observation);
-    }
+    landmark.observations.emplace(obsTree.get<IndexT>("observationId"), observation);
+  }
 }
+
 
 bool saveJSON(const sfmData::SfMData& sfmData, const std::string& filename, ESfMData partFlag)
 {
-    const Vec3 version = {1, 2, 3};
-    ALICEVISION_LOG_INFO("saving file json: " << filename);
+  const Vec3 version = {1, 0, 0};
 
-    // save flags
-    const bool saveViews = (partFlag & VIEWS) == VIEWS;
-    const bool saveIntrinsics = (partFlag & INTRINSICS) == INTRINSICS;
-    const bool saveExtrinsics = (partFlag & EXTRINSICS) == EXTRINSICS;
-    const bool saveStructure = (partFlag & STRUCTURE) == STRUCTURE;
-    const bool saveControlPoints = (partFlag & CONTROL_POINTS) == CONTROL_POINTS;
+  // save flags
+  const bool saveViews = (partFlag & VIEWS) == VIEWS;
+  const bool saveIntrinsics = (partFlag & INTRINSICS) == INTRINSICS;
+  const bool saveExtrinsics = (partFlag & EXTRINSICS) == EXTRINSICS;
+  const bool saveStructure = (partFlag & STRUCTURE) == STRUCTURE;
+  const bool saveControlPoints = (partFlag & CONTROL_POINTS) == CONTROL_POINTS;
 
-    // main tree
-    bpt::ptree fileTree;
+  // main tree
+  bpt::ptree fileTree;
 
-    // file version
-    saveMatrix("version", version, fileTree);
+  // file version
+  saveMatrix("version", version, fileTree);
 
-    // folders
-    if(!sfmData.getRelativeFeaturesFolders().empty())
+  // folders
+  if(!sfmData.getRelativeFeaturesFolders().empty())
+  {
+    bpt::ptree featureFoldersTree;
+
+    for(const std::string& featuresFolder : sfmData.getRelativeFeaturesFolders())
     {
-        bpt::ptree featureFoldersTree;
-
-        for(const std::string& featuresFolder : sfmData.getRelativeFeaturesFolders())
-        {
-            bpt::ptree featureFolderTree;
-            featureFolderTree.put("", featuresFolder);
-            featureFoldersTree.push_back(std::make_pair("", featureFolderTree));
-        }
-
-        fileTree.add_child("featuresFolders", featureFoldersTree);
+      bpt::ptree featureFolderTree;
+      featureFolderTree.put("", featuresFolder);
+      featureFoldersTree.push_back(std::make_pair("", featureFolderTree));
     }
 
-    if(!sfmData.getRelativeMatchesFolders().empty())
+    fileTree.add_child("featuresFolders", featureFoldersTree);
+  }
+
+  if(!sfmData.getRelativeMatchesFolders().empty())
+  {
+    bpt::ptree matchingFoldersTree;
+
+    for(const std::string& matchesFolder : sfmData.getRelativeMatchesFolders())
     {
-        bpt::ptree matchingFoldersTree;
-
-        for(const std::string& matchesFolder : sfmData.getRelativeMatchesFolders())
-        {
-            bpt::ptree matchingFolderTree;
-            matchingFolderTree.put("", matchesFolder);
-            matchingFoldersTree.push_back(std::make_pair("", matchingFolderTree));
-        }
-
-        fileTree.add_child("matchesFolders", matchingFoldersTree);
+      bpt::ptree matchingFolderTree;
+      matchingFolderTree.put("", matchesFolder);
+      matchingFoldersTree.push_back(std::make_pair("", matchingFolderTree));
     }
 
-    // views
-    if(saveViews && !sfmData.getViews().empty())
+    fileTree.add_child("matchesFolders", matchingFoldersTree);
+  }
+
+  // views
+  if(saveViews && !sfmData.getViews().empty())
+  {
+    bpt::ptree viewsTree;
+
+    for(const auto& viewPair : sfmData.getViews())
+      saveView("", *(viewPair.second), viewsTree);
+
+    fileTree.add_child("views", viewsTree);
+  }
+
+  // intrinsics
+  if(saveIntrinsics && !sfmData.getIntrinsics().empty())
+  {
+    bpt::ptree intrinsicsTree;
+
+    for(const auto& intrinsicPair : sfmData.getIntrinsics())
+      saveIntrinsic("", intrinsicPair.first, intrinsicPair.second, intrinsicsTree);
+
+    fileTree.add_child("intrinsics", intrinsicsTree);
+  }
+
+  //extrinsics
+  if(saveExtrinsics)
+  {
+    // poses
+    if(!sfmData.getPoses().empty())
     {
-        bpt::ptree viewsTree;
+      bpt::ptree posesTree;
 
-        for(const auto& viewPair : sfmData.getViews())
-        {
-            ALICEVISION_LOG_INFO("viewPair.second: " << viewPair.second.get()->getImagePath());
-            saveView("", *(viewPair.second), viewsTree);
-		}
-            
+      for(const auto& posePair : sfmData.getPoses())
+      {
+        bpt::ptree poseTree;
 
-        fileTree.add_child("views", viewsTree);
+        poseTree.put("poseId", posePair.first);
+        saveCameraPose("pose", posePair.second, poseTree);
+        posesTree.push_back(std::make_pair("", poseTree));
+      }
+
+      fileTree.add_child("poses", posesTree);
     }
 
-    // intrinsics
-    if(saveIntrinsics && !sfmData.getIntrinsics().empty())
+    // rigs
+    if(!sfmData.getRigs().empty())
     {
-        bpt::ptree intrinsicsTree;
+      bpt::ptree rigsTree;
 
-        for(const auto& intrinsicPair : sfmData.getIntrinsics())
-            saveIntrinsic("", intrinsicPair.first, intrinsicPair.second, intrinsicsTree);
+      for(const auto& rigPair : sfmData.getRigs())
+        saveRig("", rigPair.first, rigPair.second, rigsTree);
 
-        fileTree.add_child("intrinsics", intrinsicsTree);
+      fileTree.add_child("rigs", rigsTree);
     }
+  }
 
-    // extrinsics
-    if(saveExtrinsics)
-    {
-        // poses
-        if(!sfmData.getPoses().empty())
-        {
-            bpt::ptree posesTree;
+  // structure
+  if(saveStructure && !sfmData.getLandmarks().empty())
+  {
+    bpt::ptree structureTree;
 
-            for(const auto& posePair : sfmData.getPoses())
-            {
-                bpt::ptree poseTree;
+    for(const auto& structurePair : sfmData.getLandmarks())
+      saveLandmark("", structurePair.first, structurePair.second, structureTree);
 
-                poseTree.put("poseId", posePair.first);
-                saveCameraPose("pose", posePair.second, poseTree);
-                posesTree.push_back(std::make_pair("", poseTree));
-            }
+    fileTree.add_child("structure", structureTree);
+  }
 
-            fileTree.add_child("poses", posesTree);
-        }
+  // control points
+  if(saveControlPoints && !sfmData.getControlPoints().empty())
+  {
+    bpt::ptree controlPointTree;
 
-        // rigs
-        if(!sfmData.getRigs().empty())
-        {
-            bpt::ptree rigsTree;
+    for(const auto& controlPointPair : sfmData.getControlPoints())
+      saveLandmark("", controlPointPair.first, controlPointPair.second, controlPointTree);
 
-            for(const auto& rigPair : sfmData.getRigs())
-                saveRig("", rigPair.first, rigPair.second, rigsTree);
+    fileTree.add_child("controlPoints", controlPointTree);
+  }
 
-            fileTree.add_child("rigs", rigsTree);
-        }
-    }
+  // write the json file with the tree
 
-    // structure
-    if(saveStructure && !sfmData.getLandmarks().empty())
-    {
-        bpt::ptree structureTree;
+  bpt::write_json(filename, fileTree);
 
-        for(const auto& structurePair : sfmData.getLandmarks())
-            saveLandmark("", structurePair.first, structurePair.second, structureTree);
-
-        fileTree.add_child("structure", structureTree);
-    }
-
-    // control points
-    if(saveControlPoints && !sfmData.getControlPoints().empty())
-    {
-        bpt::ptree controlPointTree;
-
-        for(const auto& controlPointPair : sfmData.getControlPoints())
-            saveLandmark("", controlPointPair.first, controlPointPair.second, controlPointTree);
-
-        fileTree.add_child("controlPoints", controlPointTree);
-    }
-
-    // write the json file with the tree
-
-    bpt::write_json(filename, fileTree);
-
-    return true;
+  return true;
 }
 
 bool loadJSON(sfmData::SfMData& sfmData, const std::string& filename, ESfMData partFlag, bool incompleteViews)
 {
-    Vec3 version;
+  Vec3 version;
 
-    ALICEVISION_LOG_INFO("load json file: " << filename);
+  // load flags
+  const bool loadViews = (partFlag & VIEWS) == VIEWS;
+  const bool loadIntrinsics = (partFlag & INTRINSICS) == INTRINSICS;
+  const bool loadExtrinsics = (partFlag & EXTRINSICS) == EXTRINSICS;
+  const bool loadStructure = (partFlag & STRUCTURE) == STRUCTURE;
+  const bool loadControlPoints = (partFlag & CONTROL_POINTS) == CONTROL_POINTS;
 
-    // load flags
-    const bool loadViews = (partFlag & VIEWS) == VIEWS;
-    const bool loadIntrinsics = (partFlag & INTRINSICS) == INTRINSICS;
-    const bool loadExtrinsics = (partFlag & EXTRINSICS) == EXTRINSICS;
-    const bool loadStructure = (partFlag & STRUCTURE) == STRUCTURE;
-    const bool loadControlPoints = (partFlag & CONTROL_POINTS) == CONTROL_POINTS;
+  // main tree
+  bpt::ptree fileTree;
 
-    // main tree
-    bpt::ptree fileTree;
+  // read the json file and initialize the tree
+  bpt::read_json(filename, fileTree);
 
-    // read the json file and initialize the tree
-    bpt::read_json(filename, fileTree);
+  // version
+  loadMatrix("version", version, fileTree);
 
-    // version
-    loadMatrix("version", version, fileTree);
+  // folders
+  if(fileTree.count("featuresFolders"))
+    for(bpt::ptree::value_type& featureFolderNode : fileTree.get_child("featuresFolders"))
+      sfmData.addFeaturesFolder(featureFolderNode.second.get_value<std::string>());
 
-    // folders
-    if(fileTree.count("featuresFolders"))
-        for(bpt::ptree::value_type& featureFolderNode : fileTree.get_child("featuresFolders"))
-            sfmData.addFeaturesFolder(featureFolderNode.second.get_value<std::string>());
+  if(fileTree.count("matchesFolders"))
+    for(bpt::ptree::value_type& matchingFolderNode : fileTree.get_child("matchesFolders"))
+      sfmData.addMatchesFolder(matchingFolderNode.second.get_value<std::string>());
 
-    if(fileTree.count("matchesFolders"))
-        for(bpt::ptree::value_type& matchingFolderNode : fileTree.get_child("matchesFolders"))
-            sfmData.addMatchesFolder(matchingFolderNode.second.get_value<std::string>());
+  // intrinsics
+  if(loadIntrinsics && fileTree.count("intrinsics"))
+  {
+    sfmData::Intrinsics& intrinsics = sfmData.getIntrinsics();
 
-    // intrinsics
-    if(loadIntrinsics && fileTree.count("intrinsics"))
+    for(bpt::ptree::value_type &intrinsicNode : fileTree.get_child("intrinsics"))
     {
-        sfmData::Intrinsics& intrinsics = sfmData.getIntrinsics();
+      IndexT intrinsicId;
+      std::shared_ptr<camera::IntrinsicBase> intrinsic;
 
-        for(bpt::ptree::value_type& intrinsicNode : fileTree.get_child("intrinsics"))
+      loadIntrinsic(intrinsicId, intrinsic, intrinsicNode.second);
+
+      intrinsics.emplace(intrinsicId, intrinsic);
+    }
+  }
+
+  // views
+  if(loadViews && fileTree.count("views"))
+  {
+    sfmData::Views& views = sfmData.getViews();
+
+    if(incompleteViews)
+    {
+      // store incomplete views in a vector
+      std::vector<sfmData::View> incompleteViews(fileTree.get_child("views").size());
+
+      int viewIndex = 0;
+      for(bpt::ptree::value_type &viewNode : fileTree.get_child("views"))
+      {
+        loadView(incompleteViews.at(viewIndex), viewNode.second);
+        ++viewIndex;
+      }
+
+      // update incomplete views
+      #pragma omp parallel for
+      for(int i = 0; i < incompleteViews.size(); ++i)
+      {
+        sfmData::View& v = incompleteViews.at(i);
+        // if we have the intrinsics and the view has an valid associated intrinsics
+        // update the width and height field of View (they are mirrored)
+        if (loadIntrinsics && v.getIntrinsicId() != UndefinedIndexT)
         {
-            IndexT intrinsicId;
-            std::shared_ptr<camera::IntrinsicBase> intrinsic;
+          const auto intrinsics = sfmData.getIntrinsicPtr(v.getIntrinsicId());
 
-            loadIntrinsic(intrinsicId, intrinsic, intrinsicNode.second);
+          if(intrinsics == nullptr)
+          {
+            throw std::logic_error("View " + std::to_string(v.getViewId())
+                                   + " has a intrinsics id " +std::to_string(v.getIntrinsicId())
+                                   + " that cannot be found or the intrinsics are not correctly "
+                                     "loaded from the json file.");
+          }
 
-            intrinsics.emplace(intrinsicId, intrinsic);
+          v.setWidth(intrinsics->w());
+          v.setHeight(intrinsics->h());
         }
+        updateIncompleteView(incompleteViews.at(i));
+      }
+
+      // copy complete views in the SfMData views map
+      for(const sfmData::View& view : incompleteViews)
+        views.emplace(view.getViewId(), std::make_shared<sfmData::View>(view));
+    }
+    else
+    {
+      // store directly in the SfMData views map
+      for(bpt::ptree::value_type &viewNode : fileTree.get_child("views"))
+      {
+        sfmData::View view;
+        loadView(view, viewNode.second);
+        views.emplace(view.getViewId(), std::make_shared<sfmData::View>(view));
+      }
+    }
+  }
+
+  // extrinsics
+  if(loadExtrinsics)
+  {
+    // poses
+    if(fileTree.count("poses"))
+    {
+      sfmData::Poses& poses = sfmData.getPoses();
+
+      for(bpt::ptree::value_type &poseNode : fileTree.get_child("poses"))
+      {
+        bpt::ptree& poseTree = poseNode.second;
+        sfmData::CameraPose pose;
+
+        loadCameraPose("pose", pose, poseTree);
+
+        poses.emplace(poseTree.get<IndexT>("poseId"), pose);
+      }
     }
 
-    // views
-    if(loadViews && fileTree.count("views"))
+    // rigs
+    if(fileTree.count("rigs"))
     {
-        sfmData::Views& views = sfmData.getViews();
+      sfmData::Rigs& rigs = sfmData.getRigs();
 
-        if(incompleteViews)
-        {
-            ALICEVISION_LOG_INFO("incompleteViews: ");
-            // store incomplete views in a vector
-            std::vector<sfmData::View> incompleteViews(fileTree.get_child("views").size());
+      for(bpt::ptree::value_type &rigNode : fileTree.get_child("rigs"))
+      {
+        IndexT rigId;
+        sfmData::Rig rig;
 
-            int viewIndex = 0;
-            for(bpt::ptree::value_type& viewNode : fileTree.get_child("views"))
-            {
-                loadView(incompleteViews.at(viewIndex), viewNode.second);
-                ++viewIndex;
-            }
+        loadRig(rigId, rig, rigNode.second);
 
-// update incomplete views
-#pragma omp parallel for
-            for(int i = 0; i < incompleteViews.size(); ++i)
-            {
-                sfmData::View& v = incompleteViews.at(i);
-                // if we have the intrinsics and the view has an valid associated intrinsics
-                // update the width and height field of View (they are mirrored)
-                if(loadIntrinsics && v.getIntrinsicId() != UndefinedIndexT)
-                {
-                    const auto intrinsics = sfmData.getIntrinsicPtr(v.getIntrinsicId());
-
-                    if(intrinsics == nullptr)
-                    {
-                        throw std::logic_error("View " + std::to_string(v.getViewId()) + " has a intrinsics id " +
-                                               std::to_string(v.getIntrinsicId()) +
-                                               " that cannot be found or the intrinsics are not correctly "
-                                               "loaded from the json file.");
-                    }
-
-                    v.setWidth(intrinsics->w());
-                    v.setHeight(intrinsics->h());
-                }
-                updateIncompleteView(incompleteViews.at(i), i);
-            }
-
-            viewIndex = 0;
-            // copy complete views in the SfMData views map
-            ALICEVISION_LOG_INFO("views empty: " << views.empty());
-            for(const sfmData::View& view : incompleteViews)
-            {
-                ALICEVISION_LOG_INFO("views : " << view.getImagePath() << " id: " << view.getViewId())
-                    << " viewIndex: " << viewIndex;
-                views.emplace(viewIndex, std::make_shared<sfmData::View>(view));
-                ++viewIndex;
-            }
-
-            auto viewPairItBegin = sfmData.getViews().begin();
-
-            sfmData::View& view = *(std::next(viewPairItBegin, 0)->second);
-
-
-            ALICEVISION_LOG_INFO("Image path second: " << views.at(0)->getImagePath()
-                                                       << "id: " << views.begin()->first);
-        }
-        else
-        {
-            ALICEVISION_LOG_INFO("store directly in the SfMData: ");
-            // store directly in the SfMData views map
-            for(bpt::ptree::value_type& viewNode : fileTree.get_child("views"))
-            {
-                sfmData::View view;
-                loadView(view, viewNode.second);
-                views.emplace(view.getViewId(), std::make_shared<sfmData::View>(view));
-            }
-        }
+        rigs.emplace(rigId, rig);
+      }
     }
+  }
 
-    // extrinsics
-    if(loadExtrinsics)
+  // structure
+  if(loadStructure && fileTree.count("structure"))
+  {
+    sfmData::Landmarks& structure = sfmData.getLandmarks();
+
+    for(bpt::ptree::value_type &landmarkNode : fileTree.get_child("structure"))
     {
-        // poses
-        if(fileTree.count("poses"))
-        {
-            sfmData::Poses& poses = sfmData.getPoses();
+      IndexT landmarkId;
+      sfmData::Landmark landmark;
 
-            for(bpt::ptree::value_type& poseNode : fileTree.get_child("poses"))
-            {
-                bpt::ptree& poseTree = poseNode.second;
-                sfmData::CameraPose pose;
+      loadLandmark(landmarkId, landmark, landmarkNode.second);
 
-                loadCameraPose("pose", pose, poseTree);
-
-                poses.emplace(poseTree.get<IndexT>("poseId"), pose);
-            }
-        }
-
-        // rigs
-        if(fileTree.count("rigs"))
-        {
-            sfmData::Rigs& rigs = sfmData.getRigs();
-
-            for(bpt::ptree::value_type& rigNode : fileTree.get_child("rigs"))
-            {
-                IndexT rigId;
-                sfmData::Rig rig;
-
-                loadRig(rigId, rig, rigNode.second);
-
-                rigs.emplace(rigId, rig);
-            }
-        }
+      structure.emplace(landmarkId, landmark);
     }
+  }
 
-    // structure
-    if(loadStructure && fileTree.count("structure"))
+  // control points
+  if(loadControlPoints && fileTree.count("controlPoints"))
+  {
+    sfmData::Landmarks& controlPoints = sfmData.getControlPoints();
+
+    for(bpt::ptree::value_type &landmarkNode : fileTree.get_child("controlPoints"))
     {
-        sfmData::Landmarks& structure = sfmData.getLandmarks();
+      IndexT landmarkId;
+      sfmData::Landmark landmark;
 
-        for(bpt::ptree::value_type& landmarkNode : fileTree.get_child("structure"))
-        {
-            IndexT landmarkId;
-            sfmData::Landmark landmark;
+      loadLandmark(landmarkId, landmark, landmarkNode.second);
 
-            loadLandmark(landmarkId, landmark, landmarkNode.second);
-
-            structure.emplace(landmarkId, landmark);
-        }
+      controlPoints.emplace(landmarkId, landmark);
     }
+  }
 
-    // control points
-    if(loadControlPoints && fileTree.count("controlPoints"))
-    {
-        sfmData::Landmarks& controlPoints = sfmData.getControlPoints();
-
-        for(bpt::ptree::value_type& landmarkNode : fileTree.get_child("controlPoints"))
-        {
-            IndexT landmarkId;
-            sfmData::Landmark landmark;
-
-            loadLandmark(landmarkId, landmark, landmarkNode.second);
-
-            controlPoints.emplace(landmarkId, landmark);
-        }
-    }
-
-    return true;
+  return true;
 }
 
 } // namespace sfmDataIO

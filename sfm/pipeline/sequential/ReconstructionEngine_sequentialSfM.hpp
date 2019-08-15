@@ -38,7 +38,6 @@ public:
   struct Params
   {
     Pair userInitialImagePair = { UndefinedIndexT, UndefinedIndexT };
-    Pair _userInitialImagePair ;
     int minInputTrackLength = 2;
     int minTrackLength = 2;
     int minPointsPerPose = 30;
@@ -232,7 +231,7 @@ private:
    * @param[in] initialPair
    * @return
    */
-  bool makeInitialPair3D(const Pair& initialPair, int step);
+  bool makeInitialPair3D(const Pair& initialPair);
 
   /**
    * @brief Automatic initial pair selection (based on a 'baseline' computation score)
@@ -357,9 +356,6 @@ private:
    * @return number of removed outliers
    */
   std::size_t removeOutliers(double precision);
-
-  int _nextRow = 12;
-  int _cameraNrOnRow = 0;
 
 private:
 

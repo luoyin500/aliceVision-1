@@ -19,7 +19,7 @@ namespace sfmDataIO {
  * @brief update an incomplete view (at least only the image path)
  * @param view The given incomplete view
  */
-void updateIncompleteView(sfmData::View& view, int i);
+void updateIncompleteView(sfmData::View& view);
 
 /**
  * @brief create an intrinsic for the given View
