@@ -1,4 +1,4 @@
-__version__ = "2.0"
+__version__ = "3.0"
 
 from meshroom.core import desc
 
@@ -17,6 +17,18 @@ class PrepareDenseScene(desc.CommandLineNode):
             value='',
             uid=[0],
         ),
+        desc.ListAttribute(
+            elementDesc=desc.File(
+                name="imagesFolder",
+                label="Images Folder",
+                description="",
+                value="",
+                uid=[0],
+            ),
+            name="imagesFolders",
+            label="Images Folders",
+            description='Use images from specific folder(s). Filename should be the same or the image uid.',
+        ),
         desc.ChoiceParam(
             name='outputFileType',
             label='Output File Type',
@@ -25,20 +37,31 @@ class PrepareDenseScene(desc.CommandLineNode):
             values=['jpg', 'png', 'tif', 'exr'],
             exclusive=True,
             uid=[0],
+            advanced=True
         ),
         desc.BoolParam(
             name='saveMetadata',
             label='Save Metadata',
-            description='Save projections and intrinsics informations in images metadata (only for .exr images).',
+            description='Save projections and intrinsics information in images metadata (only for .exr images).',
             value=True,
             uid=[0],
+            advanced=True
         ),
         desc.BoolParam(
             name='saveMatricesTxtFiles',
             label='Save Matrices Text Files',
-            description='Save projections and intrinsics informations in text files.',
+            description='Save projections and intrinsics information in text files.',
             value=False,
             uid=[0],
+            advanced=True
+        ),
+        desc.BoolParam(
+            name='evCorrection',
+            label='Correct images exposure',
+            description='Apply a correction on images Exposure Value',
+            value=False,
+            uid=[0],
+            advanced=True
         ),
         desc.ChoiceParam(
             name='verboseLevel',
@@ -58,5 +81,14 @@ class PrepareDenseScene(desc.CommandLineNode):
             description='''Output folder.''',
             value=desc.Node.internalFolder,
             uid=[],
-        )
+        ),
+        desc.File(
+            name='outputUndistorted',
+            label='Undistorted images',
+            description='List of undistorted images.',
+            value=desc.Node.internalFolder + '*.{outputFileTypeValue}',
+            uid=[],
+            group='',
+            advanced=True
+            ),
     ]
